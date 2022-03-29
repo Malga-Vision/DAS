@@ -23,12 +23,55 @@ def Stein_hess(X, eta_G, eta_H, s = None):
     nabla2K = torch.einsum('kij,ik->kj', -1/s**2 + X_diff**2/s**4, K)
     return -G**2 + torch.matmul(torch.inverse(K + eta_H * torch.eye(n)), nabla2K)
 
+
+def parent_from_mean(mean, order, d):
+    argmax = torch.argmax(mean)
+    augmented_mean = torch.zeros(d)
+    mean_index = 0
+    for node in range(d):
+        if node in order:
+            augmented_mean[node] = argmax
+        else:
+            augmented_mean[node] = mean[mean_index]
+            mean_index += 1
+
+    return torch.argmin(augmented_mean)
+
+
+def hessian_difference(H_old, H_new, last_child):
+    """
+    Arguments:
+        H_old: Diagonal of the Hessian at step t. H_old.size() = (n, r+1)
+        H_new: Diagonal of the Hessian at step t+1. H_new.size() = (n, r)
+        last_child: last node inserted in the topological order.
+
+    Return: 
+        A (n, d) matrix with the elementwise difference between elements of H_old and H_new.
+    """
+
+    # Remove last_child column H_old
+    H_old = torch.hstack((H_old[:,:last_child], H_old[:, last_child+1: ]))
+
+    # Should I consider other ways to compute the distance rather than a simple difference?
+
+    # Elementwise difference and summary statistics
+    dist = H_old - H_new
+    mean, std = torch.std_mean(dist, dim=0)
+    norm = torch.norm(dist, dim=0)
+
+    return mean, std, norm
+
+
 def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
+    """
+    Estimate topological order from input data (Stein ridge regression)
+    """
     n, d = X.shape
     order = []
+    parents = []
     active_nodes = list(range(d))
     for i in range(d-1):
-        H = Stein_hess(X, eta_G, eta_H)
+        H = Stein_hess(X, eta_G, eta_H) # Diagonal of the Hessian for each sample
         if normalize_var:
             H = H / H.mean(axis=0)
         if dispersion == "var": # The one mentioned in the paper
@@ -38,6 +81,13 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
             l = int((H - med).abs().mean(axis=0).argmin())
         else:
             raise Exception("Unknown dispersion criterion")
+
+        if i > 0:
+            mean, std, norm = hessian_difference(H_old, H, l)
+            parents.append(parent_from_mean(mean, order, d))
+
+
+        H_old = H
         order.append(active_nodes[l])
         active_nodes.pop(l)
         X = torch.hstack([X[:,0:l], X[:,l+1:]])
