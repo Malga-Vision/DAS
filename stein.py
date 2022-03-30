@@ -24,18 +24,41 @@ def Stein_hess(X, eta_G, eta_H, s = None):
     return -G**2 + torch.matmul(torch.inverse(K + eta_H * torch.eye(n)), nabla2K)
 
 
-def parent_from_mean(mean, order, d):
-    argmax = torch.argmax(mean)
-    augmented_mean = torch.zeros(d)
-    mean_index = 0
+def adj(parents, d):
+    A = np.zeros((d, d))
+    # Optimize without double for loop
+    for node in range(d):
+        try:
+            for p in parents[node]:
+                A[node, p] = 1
+        except KeyError:
+            pass
+
+    return A
+
+
+
+def parent_from_var(var, order, d, threshold):
+    """
+    Assolutamente da rivedere, fatta a caso e il criterio di selezione non sarà questo
+    """
+    min_value = torch.min(var)
+    augmented_var = torch.zeros(d)
+    var_index = 0
     for node in range(d):
         if node in order:
-            augmented_mean[node] = argmax
+            augmented_var[node] = min_value
         else:
-            augmented_mean[node] = mean[mean_index]
-            mean_index += 1
+            augmented_var[node] = var[var_index]
+            var_index += 1
 
-    return torch.argmin(augmented_mean)
+    parents = []
+    parents_mask = augmented_var.ge(threshold)
+    for i in range(parents_mask.shape[0]):
+        if parents_mask[i]:
+            parents.append(i)
+
+    return parents
 
 
 def hessian_difference(H_old, H_new, last_child):
@@ -55,11 +78,12 @@ def hessian_difference(H_old, H_new, last_child):
     # Should I consider other ways to compute the distance rather than a simple difference?
 
     # Elementwise difference and summary statistics
-    dist = H_old - H_new
+    dist = torch.abs(H_old - H_new)
     mean, std = torch.std_mean(dist, dim=0)
+    var = torch.var(dist, dim=0)
     norm = torch.norm(dist, dim=0)
 
-    return mean, std, norm
+    return mean, std, var, norm
 
 
 def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
@@ -68,7 +92,7 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     """
     n, d = X.shape
     order = []
-    parents = []
+    parents = dict()
     active_nodes = list(range(d))
     for i in range(d-1):
         H = Stein_hess(X, eta_G, eta_H) # Diagonal of the Hessian for each sample
@@ -83,8 +107,11 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
             raise Exception("Unknown dispersion criterion")
 
         if i > 0:
-            mean, std, norm = hessian_difference(H_old, H, l)
-            parents.append(parent_from_mean(mean, order, d))
+            mean, std, var, norm = hessian_difference(H_old, H, l)
+
+            # Try also with mean. 
+            # Also, try with norm
+            parents[order[-1]] = parent_from_var(var, order, d, 1)
 
 
         H_old = H
@@ -93,7 +120,8 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
         X = torch.hstack([X[:,0:l], X[:,l+1:]])
     order.append(active_nodes[0])
     order.reverse()
-    return order
+    
+    return order, adj(parents, d)
     
 def Stein_pruning(X, top_order, eta, threshold = 0.1):
     d = X.shape[1]
@@ -177,12 +205,13 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
 
   
 def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1):
-    top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
-    
+    top_order, my_adj = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
+    return my_adj
+
     if pruning == 'CAM':
-        return cam_pruning(full_DAG(top_order), X, cutoff), top_order
+        return cam_pruning(full_DAG(top_order), X, cutoff), top_order, my_adj
     elif pruning == 'Stein':
-        return Stein_pruning(X, top_order, eta_G, threshold = threshold), top_order
+        return Stein_pruning(X, top_order, eta_G, threshold = threshold), top_order, my_adj
     else:
         raise Exception("Unknown pruning method")
 

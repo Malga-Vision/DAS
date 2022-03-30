@@ -15,7 +15,7 @@ def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', G
     return X, adjacency
 
 
-# Data generation paramters
+# Data generation parameters
 graph_type = 'ER'
 d = 10
 s0 = 10
@@ -32,7 +32,13 @@ cdt.cdt.utils.R.DefaultRPackages()
 
 
 
-A_SCORE, top_order_SCORE =  SCORE(X, eta_G, eta_H, cam_cutoff)
-print("SHD : {}".format(SHD(A_SCORE, adj)))
-print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
-print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))
+# A_SCORE, top_order_SCORE, my_adj =  SCORE(X, eta_G, eta_H, cam_cutoff)
+#print("SHD : {}".format(SHD(A_SCORE, adj)))
+#print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
+#print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))
+
+my_adj =  SCORE(X, eta_G, eta_H, cam_cutoff)
+print("\n My method scores")
+print("SHD : {}".format(SHD(my_adj, adj)))
+print(my_adj)
+# print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=my_adj))))
