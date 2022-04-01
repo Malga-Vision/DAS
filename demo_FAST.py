@@ -1,5 +1,8 @@
 from stein import *
+from fast_stein import fast_SCORE
 import cdt
+import time
+
 
 def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
     """
@@ -22,16 +25,21 @@ N = 1000
 
 X, adj = generate(d, s0, N, GP=True)
 
+start_time = time.time()
+
 # SCORE hyper-parameters
 eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 
-cdt.cdt.utils.R.DefaultRPackages()
 
-
-
-A_SCORE, top_order_SCORE, my_adj =  fast_SCORE(X, eta_G, eta_H, cam_cutoff)
+A_SCORE, top_order_SCORE =  fast_SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Fast", threshold = 0.1)
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
 print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))
+
+print(A_SCORE)
+print(adj)
+print(adj-A_SCORE)
+
+print("--- %s seconds ---" % (time.time() - start_time))

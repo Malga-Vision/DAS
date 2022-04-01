@@ -4,7 +4,7 @@ import torch
 from utils import *
 
     
-def Stein_hess(X, eta_G, eta_H, s = None):
+def Stein_hess_diag(X, eta_G, eta_H, s = None):
     """
     Estimates the diagonal of the Hessian of log p_X at the provided samples points
     X, using first and second-order Stein identities
@@ -28,7 +28,7 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     order = []
     active_nodes = list(range(d))
     for i in range(d-1):
-        H = Stein_hess(X, eta_G, eta_H)
+        H = Stein_hess_diag(X, eta_G, eta_H)
         if normalize_var:
             H = H / H.mean(axis=0)
         if dispersion == "var": # The one mentioned in the paper
@@ -69,9 +69,10 @@ def Stein_hess_parents(X, s, eta, l):
     K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
     
     nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK)
+    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
     Gl = torch.einsum('i,ij->ij', G[:,l], G)
     
+    # Need nabla2K. Cerco di capire
     nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
     nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
     
