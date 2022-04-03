@@ -19,7 +19,7 @@ def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', G
 
 # Data generation parameters
 graph_type = 'ER'
-d = 20
+d = 50
 s0 = 10
 N = 1000
 
@@ -28,12 +28,12 @@ X, adj = generate(d, s0, N, GP=True)
 start_time = time.time()
 
 # SCORE hyper-parameters
+threshold = 0.2
 eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 
 start = time.time()
-threshold = 0.15 
 A_SCORE, top_order_SCORE =  fast_SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Stein", threshold = threshold)
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
@@ -46,26 +46,27 @@ def newline(f, n=1):
         f.write("\n")
 
 with open('results.txt', 'w') as f:
-    # Threshold must increase while increasing number of nodes
+    # Intuition: Threshold must increase while increasing number of nodes
     # as more sum yield more noisy hessian values
     f.write(f"Threshold: {threshold}")
     A_SCORE = A_SCORE.astype(np.int) 
-
     A_diff = adj - A_SCORE
-    newline(f, 2)
-    f.write(f"DIFFERENCE \n") # 1: threshold too high. -1: threshold too low
-    for row in A_diff:
-        f.write(f"{row}\n")
 
-    newline(f)
-    f.write(f"GROUND TRUTH \n")
-    for row in adj:
-        f.write(f"{row}\n")
+    if d <= 20:
+        newline(f, 2)
+        f.write(f"DIFFERENCE \n") # 1: threshold too high. -1: threshold too low
+        for row in A_diff:
+            f.write(f"{row}\n")
 
-    newline(f)
-    f.write(f"A_SCORE \n")
-    for row in A_SCORE:
-        f.write(f"{row}\n")
+        newline(f)
+        f.write(f"GROUND TRUTH \n")
+        for row in adj:
+            f.write(f"{row}\n")
+
+        newline(f)
+        f.write(f"A_SCORE \n")
+        for row in A_SCORE:
+            f.write(f"{row}\n")
 
     newline(f)
     tot_difference = np.sum(np.asmatrix(np.abs(A_diff)))
