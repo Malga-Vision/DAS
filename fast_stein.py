@@ -1,6 +1,7 @@
 #import tensorflow.compat.v1 as tf
 #tf.disable_v2_behavior()
 from logging import PlaceHolder
+import time
 import torch
 from utils import *
 from stein import *
@@ -112,7 +113,7 @@ def Stein_hess_matrix(X, s, eta):
 
 
 # Actually, it is faster to do it while doing the topological computation.
-# I recycle the diagonal elements. Next optimization step, is compute only the Hessian rows needed
+# Nevertheless, should compute only the Hessian rows needed
 def fast_pruning(X, top_order, eta_G, threshold):
     """
     Args:
@@ -123,14 +124,24 @@ def fast_pruning(X, top_order, eta_G, threshold):
     """
     d = X.shape[1]
     remaining_nodes = list(range(d))
+    s = heuristic_kernel_width(X.detach()) # This approximation would actually change at each iteration...
+    hess = Stein_hess_matrix(X, s, eta_G)
     # Enforce acyclicity
     A = np.zeros((d,d))
     for i in range(d-1):
         l = top_order[-(i+1)]
-        s = heuristic_kernel_width(X[:, remaining_nodes].detach())
-        hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
-        hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
-        parents = [remaining_nodes[i] for i in torch.where(torch.abs(hess_l.mean(dim=0))> threshold)[0] if top_order[i] != l]
+        # s = heuristic_kernel_width(X[:, remaining_nodes].detach())
+        # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
+        # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
+
+        hess_remaining = hess[:, remaining_nodes, :]
+        hess_remaining = hess_remaining[:, :, remaining_nodes]
+        hess_l = hess_remaining[:, remaining_nodes.index(l), :]
+        parents = []
+        for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
+            if top_order[j] != l: # ?!
+                parents.append(remaining_nodes[j])
+        # parents = [remaining_nodes[j] for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0] if top_order[j] != l]
 
         A[parents, l] = 1
         A[l, l] = 0
@@ -138,37 +149,8 @@ def fast_pruning(X, top_order, eta_G, threshold):
     return A
 
 
-def compute_top_order_test(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
-    n, d = X.shape
-    order = []
-    active_nodes = list(range(d))
-    for i in range(d-1):
-        H = Stein_hess_diag(X, eta_G, eta_H)
-
-        s = heuristic_kernel_width(X)
-        placeholder = Stein_hess_matrix(X, s, eta_G)
-        
-        if normalize_var:
-            H = H / H.mean(axis=0)
-
-        if dispersion == "var": # The one mentioned in the paper
-            l = int(H.var(axis=0).argmin())
-        elif dispersion == "median":
-            med = H.median(axis = 0)[0]
-            l = int((H - med).abs().mean(axis=0).argmin())
-        else:
-            raise Exception("Unknown dispersion criterion")
-        order.append(active_nodes[l])
-        active_nodes.pop(l)
-        X = torch.hstack([X[:,0:l], X[:,l+1:]])
-    order.append(active_nodes[0])
-    order.reverse() # First node(s): source 
-    return order
-
-
-
 def fast_SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1):
-    top_order = compute_top_order_test(X, eta_G, eta_H, normalize_var, dispersion)
+    top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
 
     if pruning == 'CAM':
         return cam_pruning(full_DAG(top_order), X, cutoff), top_order
@@ -177,42 +159,20 @@ def fast_SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, d
     elif pruning == "Fast":
         return fast_pruning(X, top_order, eta_G, threshold=threshold), top_order
     else:
-        raise Exception("Uexisting pruning method")
+        raise Exception("Unexisting pruning method")
 
 
+def stein_vs_fast_pruning(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", threshold_s=0.1, threshold_f=0.1):
+    top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
 
+    # Stein
+    start_time = time.time()
+    A_stein =  Stein_pruning(X, top_order, eta_G, threshold =threshold_s)
+    print("Stein pruning: --- %s seconds ---" % (time.time() - start_time))
 
-# # Fa cacare riscrivere la stessa funzione quasi uguale, ma per ora preferisco lasciare il suo codice intonso
-# def compute_adj_fast(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
-#     """
-#     Estimate topological order from input data (Stein ridge regression)
-#     """
-#     n, d = X.shape
-#     order = []
-#     active_nodes = list(range(d))
-#     for i in range(d-1):
-#         H = Stein_hess_diag(X, eta_G, eta_H) # Diagonal of the Hessian for each sample
-#         if normalize_var:
-#             H = H / H.mean(axis=0)
-#         if dispersion == "var": # The one mentioned in the paper
-#             l = int(H.var(axis=0).argmin())
-#         elif dispersion == "median":
-#             med = H.median(axis = 0)[0]
-#             l = int((H - med).abs().mean(axis=0).argmin())
-#         else:
-#             raise Exception("Unknown dispersion criterion")
+    # Fast
+    start_time = time.time()
+    A_fast  =  fast_pruning(X, top_order, eta_G, threshold=threshold_f)
+    print("Fast pruning: --- %s seconds ---" % (time.time() - start_time))
 
-#         # Method 1 : compute the difference on the diagonal of the hessian, and use statistics to infer parents
-#         if i > 0:
-#             mean, std, var, norm = hessian_difference(H_old, H, l)
-#             # parents[order[-1]] = parent_from_var(var, order, d, 1)
-#             # TODO: Store statistics
-#         H_old = H
-
-#         order.append(active_nodes[l])
-#         active_nodes.pop(l)
-#         X = torch.hstack([X[:,0:l], X[:,l+1:]])
-#     order.append(active_nodes[0])
-#     order.reverse()
-    
-#     return order
+    return A_stein, A_fast, top_order
