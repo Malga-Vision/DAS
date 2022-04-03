@@ -1,3 +1,3 @@
 Threshold: 0.2
 Number of links: 10
-Number of missed/wrong: 5
+Number of missed/wrong: 6

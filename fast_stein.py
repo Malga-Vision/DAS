@@ -1,70 +1,8 @@
-#import tensorflow.compat.v1 as tf
-#tf.disable_v2_behavior()
 from logging import PlaceHolder
-import time
 import torch
+import time
 from utils import *
 from stein import *
-
-def adj(parents, d):
-    A = np.zeros((d, d))
-    # Optimize without double for loop
-    for node in range(d):
-        try:
-            for p in parents[node]:
-                A[node, p] = 1
-        except KeyError:
-            pass
-
-    return A
-
-
-def parent_from_var(var, order, d, threshold):
-    """
-    Assolutamente da rivedere, fatta a caso e il criterio di selezione non sarà questo
-    """
-    min_value = torch.min(var)
-    augmented_var = torch.zeros(d)
-    var_index = 0
-    for node in range(d):
-        if node in order:
-            augmented_var[node] = min_value
-        else:
-            augmented_var[node] = var[var_index]
-            var_index += 1
-
-    parents = []
-    parents_mask = augmented_var.ge(threshold)
-    for i in range(parents_mask.shape[0]):
-        if parents_mask[i]:
-            parents.append(i)
-
-    return parents
-
-
-def hessian_difference(H_old, H_new, last_child):
-    """
-    Arguments:
-        H_old: Diagonal of the Hessian at step t. H_old.size() = (n, r+1)
-        H_new: Diagonal of the Hessian at step t+1. H_new.size() = (n, r)
-        last_child: last node inserted in the topological order.
-
-    Return: 
-        A (n, d) matrix with the elementwise difference between elements of H_old and H_new.
-    """
-
-    # Remove last_child column H_old
-    H_old = torch.hstack((H_old[:,:last_child], H_old[:, last_child+1: ]))
-
-    # Should I consider other ways to compute the distance rather than a simple difference?
-
-    # Elementwise difference and summary statistics
-    dist = torch.abs(H_old - H_new)
-    mean, std = torch.std_mean(dist, dim=0)
-    var = torch.var(dist, dim=0)
-    norm = torch.norm(dist, dim=0)
-
-    return mean, std, var, norm
 
 
 def Stein_hess_col(X_diff, G, K, v, s, eta, n):
@@ -82,7 +20,7 @@ def Stein_hess_col(X_diff, G, K, v, s, eta, n):
     return Hess_v
 
 
-# Should actually compute only the row of interest...
+# Would it be better to comptue only row of interest at each iteration?
 def Stein_hess_matrix(X, s, eta):
     """
     Compute the Stein Hessian estimator matrix for each sample in the dataset
@@ -90,7 +28,7 @@ def Stein_hess_matrix(X, s, eta):
     Args:
         X: N x D matrix of the data
         s: kernel width estimator
-        eta: 
+        eta: regularization coefficient
 
     Return:
         Hess: N x D x D hessian estimator of log(p(x))
@@ -112,8 +50,6 @@ def Stein_hess_matrix(X, s, eta):
     return Hess
 
 
-# Actually, it is faster to do it while doing the topological computation.
-# Nevertheless, should compute only the Hessian rows needed
 def fast_pruning(X, top_order, eta_G, threshold):
     """
     Args:
@@ -124,16 +60,20 @@ def fast_pruning(X, top_order, eta_G, threshold):
     """
     d = X.shape[1]
     remaining_nodes = list(range(d))
-    s = heuristic_kernel_width(X.detach()) # This approximation would actually change at each iteration...
+    s = heuristic_kernel_width(X.detach()) # This actually changes at each iteration 
     hess = Stein_hess_matrix(X, s, eta_G)
-    # Enforce acyclicity
+
+    # TODO: Enforce acyclicity
     A = np.zeros((d,d))
     for i in range(d-1):
         l = top_order[-(i+1)]
+
+        # Results are not actually better, while way slower
         # s = heuristic_kernel_width(X[:, remaining_nodes].detach())
         # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
         # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
 
+        # N x remaining_nodees x remaining_nodes
         hess_remaining = hess[:, remaining_nodes, :]
         hess_remaining = hess_remaining[:, :, remaining_nodes]
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
@@ -141,7 +81,6 @@ def fast_pruning(X, top_order, eta_G, threshold):
         for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
             if top_order[j] != l: # ?!
                 parents.append(remaining_nodes[j])
-        # parents = [remaining_nodes[j] for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0] if top_order[j] != l]
 
         A[parents, l] = 1
         A[l, l] = 0

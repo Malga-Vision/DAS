@@ -1,6 +1,7 @@
-#import tensorflow.compat.v1 as tf
-#tf.disable_v2_behavior()
 import torch
+import time
+
+from fast_stein import *
 from utils import *
 
     
@@ -44,7 +45,34 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     order.append(active_nodes[0])
     order.reverse()
     return order
+
+
+def Stein_hess_parents(X, s, eta, l):
+    n, d = X.shape
     
+    X_diff = X.unsqueeze(1)-X
+    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
+    
+    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
+    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
+    Gl = torch.einsum('i,ij->ij', G[:,l], G)
+    
+    nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
+    nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
+    
+    return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
+
+
+def heuristic_kernel_width(X):
+    """
+    Estimator of width parameter for gaussian kernel
+    """
+    X_diff = X.unsqueeze(1)-X
+    D = torch.norm(X_diff, dim=2, p=2)
+    s = D.flatten().median()
+    return s
+
+
 def Stein_pruning(X, top_order, eta, threshold = 0.1):
     d = X.shape[1]
     remaining_nodes = list(range(d))
@@ -62,32 +90,12 @@ def Stein_pruning(X, top_order, eta, threshold = 0.1):
         remaining_nodes.remove(l)
     return A
 
-def Stein_hess_parents(X, s, eta, l):
-    n, d = X.shape
-    
-    X_diff = X.unsqueeze(1)-X
-    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-    
-    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
-    Gl = torch.einsum('i,ij->ij', G[:,l], G)
-    
-    # Need nabla2K. Cerco di capire
-    nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
-    nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
-    
-    return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
-
-def heuristic_kernel_width(X):
-    X_diff = X.unsqueeze(1)-X
-    D = torch.norm(X_diff, dim=2, p=2)
-    s = D.flatten().median()
-    return s
 
 def fullAdj2Order(A):
     order = list(A.sum(axis=1).argsort())
     order.reverse()
     return order
+
 
 def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
     save_path = "./"
@@ -125,7 +133,6 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-
   
 def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1):
     top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
@@ -134,8 +141,11 @@ def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, disper
         return cam_pruning(full_DAG(top_order), X, cutoff), top_order
     elif pruning == 'Stein':
         return Stein_pruning(X, top_order, eta_G, threshold = threshold), top_order
+    elif pruning == "Fast":
+        return fast_pruning(X, top_order, eta_G, threshold=threshold), top_order
     else:
         raise Exception("Unknown pruning method")
+
 
 def sortnregress(X, cutoff=0.001):
     var_order = np.argsort(X.var(axis=0))
@@ -148,13 +158,3 @@ def num_errors(order, adj):
     for i in range(len(order)):
         err += adj[order[i+1:], order[i]].sum()
     return err
-
-
-def Stein_grad(X, s, eta): # Not used
-    n, d = X.shape
-
-    X_diff = X.unsqueeze(1)-X
-    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-
-    nablaK = -torch.einsum('kij,ik->kj', X_diff, K) / s**2
-    return torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK)

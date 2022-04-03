@@ -21,7 +21,7 @@ def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', G
 graph_type = 'ER'
 d = 50
 s0 = 10
-N = 1000
+N = 2000
 
 X, adj = generate(d, s0, N, GP=True)
 
@@ -34,7 +34,7 @@ eta_H = 0.001
 cam_cutoff = 0.001
 
 start = time.time()
-A_SCORE, top_order_SCORE =  fast_SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Stein", threshold = threshold)
+A_SCORE, top_order_SCORE =  fast_SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Fast", threshold = threshold)
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
 print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))

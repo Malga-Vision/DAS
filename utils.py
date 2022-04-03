@@ -1,26 +1,21 @@
-import numpy as np
-import torch
-import torch.optim as optim
-import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
-
+import json
 import GPy
-import igraph as ig
-import pandas as pd
 import uuid
-import math
 import os
-from torch.distributions import MultivariateNormal, Normal, Laplace, Gumbel
+import igraph as ig
+import numpy as np
+import pandas as pd
+import networkx as nx
 import matplotlib.pyplot as plt
+
+import torch
+from torch.distributions import MultivariateNormal, Normal, Laplace, Gumbel
 
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.feature_selection import SelectFromModel
 
 from cdt.utils.R import RPackages, launch_R_script
 from cdt.metrics import retrieve_adjacency_matrix
-
-import networkx as nx
-import json
 
 
 class Dist(object):
@@ -106,6 +101,19 @@ class Dist(object):
                     fi += torch.sin(X[:,j])
             l -= 0.5 * (X[:,i] - fi)**2
         return l
+
+
+def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
+    """
+        Args:
+            d (int): num of nodes
+            s0 (int): expected num of edges
+            graph_type (str): ER, SF
+    """
+    adjacency = simulate_dag(d, s0, graph_type, triu=True)
+    teacher = Dist(d, noise_std, noise_type, adjacency, GP = GP, lengthscale=lengthscale)
+    X, noise_var = teacher.sample(N)
+    return X, adjacency
 
 
 def simulate_dag(d, s0, graph_type, triu=False):
@@ -215,7 +223,6 @@ def cam_pruning_(model_adj, data, cutoff, save_path, verbose=False):
     return dag_pruned
 
 
-
 def pns_(model_adj, x, num_neighbors, thresh):
     """Preliminary neighborhood selection"""
     num_samples = x.shape[0]
@@ -234,6 +241,7 @@ def pns_(model_adj, x, num_neighbors, thresh):
         model_adj[:, node] *= mask_selected
 
     return model_adj
+
 
 def edge_errors(pred, target):
     """
