@@ -27,7 +27,7 @@ eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 
-A_SCORE, top_order_SCORE =  SCORE(X, eta_G, eta_H, cam_cutoff)
+A_SCORE, top_order_SCORE, _, _ =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning='Fast')
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
 print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))
