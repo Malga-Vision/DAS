@@ -33,18 +33,18 @@ class Experiment:
 
             run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
-            mean_logs = np.mean(run_logs, axis=0)
-            std_logs = np.std(run_logs, axis=0)
-            logs = []
-            for i in range(len(self.columns)):
-                m = mean_logs[i]
-                s = std_logs[i]
-                if self.columns[i] in ["V", "E", "N"]:
-                    logs.append(f"{int(m)}")
-                elif self.columns[i] == "threshold":
-                    logs.append(f"{round(m, 2)}")
-                else:
-                    logs.append(f"{round(m, 2)} +- {round(s, 2)}")
+        mean_logs = np.mean(run_logs, axis=0)
+        std_logs = np.std(run_logs, axis=0)
+        logs = []
+        for i in range(len(self.columns)):
+            m = mean_logs[i]
+            s = std_logs[i]
+            if self.columns[i] in ["V", "E", "N"]:
+                logs.append(f"{int(m)}")
+            elif self.columns[i] == "threshold":
+                logs.append(f"{round(m, 2)}")
+            else:
+                logs.append(f"{round(m, 2)} +- {round(s, 2)}")
         
         self.logs.append(logs)
 
@@ -65,7 +65,7 @@ class Experiment:
 
 def stein_fast_exp(num_tests, N, eta_G, eta_H):
     # Hyperparameters
-    thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]
+    thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
     d_values= [10, 20, 50, 100]
     param_grid = {'d': d_values, 'threshold': thresholds}
     params = list(ParameterGrid(param_grid))
@@ -74,7 +74,7 @@ def stein_fast_exp(num_tests, N, eta_G, eta_H):
     tot_runs = len(params)*2
     start = time.time()
 
-    for pruning in ["Fast", "Stein"]:
+    for pruning in ["Fast"]:
         experiments = Experiment(num_tests, pruning)
         for args in params:
             d = args['d']
@@ -110,11 +110,11 @@ eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 
-num_tests = 10 # multiple tests to compute mean and std scores 
-pruning_algorithm = "CAM"
+num_tests = 2 # multiple tests to compute mean and std scores 
+pruning_algorithm = "Fast"
 
-if pruning_algorithm == "Fast Stein":
-    stein_fast_exp(num_tests, N, eta_G, eta_H, cam_cutoff)
+if pruning_algorithm in ["Fast Stein", "Fast", "Stein"]:
+    stein_fast_exp(num_tests, N, eta_G, eta_H)
 
 elif pruning_algorithm == "CAM":
     cam_exp(num_tests, N, eta_G, eta_H, cam_cutoff)

@@ -68,7 +68,7 @@ def Stein_hess_matrix(X, s, eta):
     
     return Hess
 
-
+# Try to compute Hess once and remove nodes each time
 def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     n, d = X.shape
     order = []
@@ -90,6 +90,7 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     order.append(active_nodes[0])
     order.reverse()
     return order
+
 
 
 def Stein_hess_parents(X, s, eta, l):
@@ -165,7 +166,6 @@ def fast_pruning(X, top_order, eta_G, threshold):
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
         parents = []
         for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
-        # for j in torch.where(torch.abs(hess_l).mean(dim=0) > threshold)[0]:
             if top_order[j] != l: # ?!
                 parents.append(remaining_nodes[j])
 
@@ -173,6 +173,7 @@ def fast_pruning(X, top_order, eta_G, threshold):
         A[l, l] = 0
         remaining_nodes.remove(l)
     return A
+
 
 
 def fullAdj2Order(A):

@@ -16,8 +16,8 @@ def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', G
 
 # Data generation paramters
 graph_type = 'ER'
-d = 10
-s0 = 10
+d = 200
+s0 = 4*d
 N = 1000
 
 X, adj = generate(d, s0, N, GP=True)
@@ -26,8 +26,14 @@ X, adj = generate(d, s0, N, GP=True)
 eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
+pruning = "Fast"
+threshold = 0.1 # None for CAM
 
-A_SCORE, top_order_SCORE, _, _ =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning='Fast')
+# Test: provo a elevare a esponenziale la funzione discriminatoria,e  diminuire accordingly threshold
+start = time.time()
+A_SCORE, top_order_SCORE, _, _ =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold = threshold)
+print(f"Excution time: ----- {round(time.time() - start, 2)}s -----")
+print(f"Pruning: {pruning}, Threshold: {threshold}")
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))
 print("top order errors: {}".format(num_errors(top_order_SCORE, adj)))
