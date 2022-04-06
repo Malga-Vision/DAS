@@ -14,11 +14,9 @@ dependencies:
   - brotlipy=0.7.0=py310h6acc77f_1003
   - bzip2=1.0.8=h7f98852_4
   - ca-certificates=2022.3.18=h06a4308_0
-  - cdt=0.5.23=pyhd8ed1ab_0
   - certifi=2021.10.8=py310hff52083_1
   - cffi=1.15.0=py310h0fdd8cc_0
   - charset-normalizer=2.0.12=pyhd8ed1ab_0
-  - colorama=0.4.4=pyh9f0ad1d_0
   - cryptography=36.0.0=py310h9ce1e76_0
   - cudatoolkit=10.2.89=h8f6ccaa_10
   - cycler=0.11.0=pyhd8ed1ab_0
@@ -30,7 +28,6 @@ dependencies:
   - giflib=5.2.1=h36c2ea0_2
   - gmp=6.2.1=h58526e2_0
   - gnutls=3.6.15=he1e5248_0
-  - gputil=1.4.0=pyh9f0ad1d_0
   - gpy=1.10.0=py310h96516ba_2
   - icu=69.1=h9c3ff4c_0
   - idna=3.3=pyhd8ed1ab_0
@@ -82,7 +79,6 @@ dependencies:
   - munkres=1.1.4=pyh9f0ad1d_0
   - ncurses=6.3=h9c3ff4c_0
   - nettle=3.7.3=hbbd107a_1
-  - networkx=2.7.1=pyhd8ed1ab_1
   - numpy=1.22.3=py310h45f3432_0
   - openh264=2.1.1=h780b84a_0
   - openssl=3.0.2=h166bdaf_1
@@ -106,9 +102,10 @@ dependencies:
   - requests=2.27.1=pyhd8ed1ab_0
   - scikit-learn=1.0.2=py310h1246948_0
   - scipy=1.8.0=py310hea5193d_1
+  - seaborn=0.11.2=hd8ed1ab_0
+  - seaborn-base=0.11.2=pyhd8ed1ab_0
   - setuptools=61.2.0=py310hff52083_0
   - six=1.16.0=pyh6c4a22f_0
-  - skrebate=0.62=pyhd8ed1ab_0
   - sqlite=3.38.0=hc218d9a_0
   - statsmodels=0.13.2=py310h96516ba_0
   - svt-av1=0.9.1=h27087fc_0
@@ -117,7 +114,6 @@ dependencies:
   - tk=8.6.12=h27826a3_0
   - torchaudio=0.11.0=py310_cu102
   - torchvision=0.12.0=py310_cu102
-  - tqdm=4.63.1=pyhd8ed1ab_0
   - typing_extensions=4.1.1=pyha770c72_0
   - tzdata=2022a=h191b570_0
   - unicodedata2=14.0.0=py310h6acc77f_0
@@ -136,5 +132,9 @@ dependencies:
   - zlib=1.2.11=h166bdaf_1014
   - zstd=1.5.2=ha95c52a_0
   - pip:
+    - cdt==0.5.23
+    - gputil==1.4.0
     - igraph==0.9.9
+    - networkx==2.7.1
     - texttable==1.6.4
+    - tqdm==4.63.1
