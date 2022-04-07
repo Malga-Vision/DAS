@@ -181,7 +181,7 @@ if __name__ == "__main__":
         d_values = [10, 20, 50, 100, 200, 500, 1000]
         thresholds = [0.1, 0.15, 0.2, 0.25, 0.3]
         for s0 in ['d', '4d']:
-            output_file = f"logs_{pruning.lower()}_{s0}_er.csv"
+            output_file = f"{pruning.lower()}_{s0}_{d_values[-1]}.csv"
             experiment = SteinFastExperiment(d_values, num_tests, s0, thresholds, pruning, output_file)
             experiment.run_experiment(N, eta_G, eta_H)
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         cam_cutoff=0.001
 
         for s0 in ['d', '4d']:
-            output_file = f"logs_cam_{s0}_er.csv"
+            output_file = f"cam_{s0}_{d_values[-1]}.csv"
             experiment = CAMExperiment(d_values, num_tests, s0, cam_cutoff, output_file)
             experiment.run_experiment(N, eta_G, eta_H)
 
