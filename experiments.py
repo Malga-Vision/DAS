@@ -40,10 +40,11 @@ class Experiment(metaclass=abc.ABCMeta):
 
 
 class CAMExperiment(Experiment):
-    def __init__(self, d_values, num_tests, s0, cam_cutoff, output_file):
+    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, output_file):
         self.d_values = d_values
         self.num_tests = num_tests
         self.s0 = s0
+        self.data_type = data_type
         self.cam_cutoff = cam_cutoff
 
         self.logs = []
@@ -77,7 +78,7 @@ class CAMExperiment(Experiment):
         
         run_logs = []
         for k in range(self.num_tests):
-            X, adj = generate(d, s0, N, GP=True)
+            X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
 
             A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, self.cam_cutoff, pruning="CAM")
             fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE)
@@ -99,10 +100,11 @@ class CAMExperiment(Experiment):
 
 
 class SteinFastExperiment(Experiment):
-    def __init__(self, d_values, num_tests, s0, thresholds, pruning, output_file):
+    def __init__(self, d_values, num_tests, s0, data_type, thresholds, pruning, output_file):
         self.d_values = d_values
         self.num_tests = num_tests
         self.s0 = s0
+        self.data_type = data_type
         self.thresholds = thresholds
         self.pruning = pruning
 
@@ -140,7 +142,7 @@ class SteinFastExperiment(Experiment):
 
         run_logs = []
         for k in range(self.num_tests):
-            X, adj = generate(d, s0, N, GP=True)
+            X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
 
             A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning=self.pruning, threshold=threshold)
             fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE)
@@ -171,27 +173,32 @@ if __name__ == "__main__":
     eta_G = 0.001
     eta_H = 0.001
 
-    # Iterations for average and standard devation
+    # General
+    data_type = 'Gauss'
     num_tests = 10
 
     # Pruning algorithm: ["Fast", "Stein", "CAM"]
-    pruning = "CAM"
+    pruning = "Fast"
 
     if pruning == "Fast" or pruning == "Stein":
-        d_values = [10, 20, 50, 100, 200, 500, 1000]
-        thresholds = [0.1, 0.15, 0.2, 0.25, 0.3]
+        # d_values = [10, 20, 50, 100, 200, 500, 1000]
+        # thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
+        # for s0 in ['d', '4d']:
+        d_values = [500, 1000]
+        thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
         for s0 in ['d', '4d']:
-            output_file = f"{pruning.lower()}_{s0}_{d_values[-1]}.csv"
-            experiment = SteinFastExperiment(d_values, num_tests, s0, thresholds, pruning, output_file)
+            # output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
+            output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
+            experiment = SteinFastExperiment(d_values, num_tests, s0, data_type, thresholds, pruning, output_file)
             experiment.run_experiment(N, eta_G, eta_H)
 
     elif pruning == "CAM":
-        d_values = [100]
+        d_values = [10, 20, 50, 100]
         cam_cutoff=0.001
 
         for s0 in ['d', '4d']:
-            output_file = f"cam_{s0}_{d_values[-1]}.csv"
-            experiment = CAMExperiment(d_values, num_tests, s0, cam_cutoff, output_file)
+            output_file = f"cam_{s0}_{data_type}_{d_values[-1]}.csv"
+            experiment = CAMExperiment(d_values, num_tests, s0, data_type, cam_cutoff, output_file)
             experiment.run_experiment(N, eta_G, eta_H)
 
     else:
