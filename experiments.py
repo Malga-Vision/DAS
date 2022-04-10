@@ -26,10 +26,13 @@ class Experiment(metaclass=abc.ABCMeta):
         """Logs of a tested configuration"""
         raise NotImplementedError
 
-    def metrics(self, A_SCORE, adj, top_order_SCORE):
+    def metrics(self, A_SCORE, adj, top_order_SCORE, compute_SID):
             fn, fp, rev = edge_errors(A_SCORE, adj)
             SHD = sum((fn, fp, rev))
-            SID = int(cdt.metrics.SID(target=adj, pred=A_SCORE))
+
+            SID = -1
+            if compute_SID:
+                SID = int(cdt.metrics.SID(target=adj, pred=A_SCORE))
             top_order_errors = num_errors(top_order_SCORE, adj)
             return fn, fp, rev, SHD, SID, top_order_errors
 
@@ -92,6 +95,7 @@ class CAMExperiment(Experiment):
         run = 0
         tot_runs = len(self.d_values)
         for d in list(ParameterGrid({'d': self.d_values})):
+            print(f"Running experiment for d: {d}")
             self.run_config(d, N, eta_G, eta_H)
             self.save_logs()
 
@@ -114,7 +118,7 @@ class SteinFastExperiment(Experiment):
         ]
         self.output_file = output_file
 
-    def config_logs(self, run_logs):
+    def config_logs(self, run_logs, compute_SID):
         mean_logs = np.mean(run_logs, axis=0)
         std_logs = np.std(run_logs, axis=0)
         logs = []
@@ -125,6 +129,8 @@ class SteinFastExperiment(Experiment):
                 logs.append(f"{int(m)}")
             elif self.columns[i] == 'threshold':
                 logs.append(round(m, 2))
+            elif not compute_SID and self.columns[i] == "SID":
+                logs.append(None)
             else:
                 logs.append(f"{round(m, 2)} +- {round(s, 2)}")
         self.logs.append(logs)
@@ -133,6 +139,10 @@ class SteinFastExperiment(Experiment):
     def run_config(self, params, N, eta_G, eta_H):
         d = params['d']
         threshold = params['threshold']
+
+        compute_SID = True
+        if d > 200:
+            compute_SID = False
         if self.s0 == 'd':
             s0 = d
         elif self.s0 == '4d':
@@ -142,13 +152,21 @@ class SteinFastExperiment(Experiment):
 
         run_logs = []
         for k in range(self.num_tests):
+            print(f"Iteration {k+1}/{self.num_tests}")
+            print("Generating data...", end=" ", flush=True)
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
+            print("Done")
 
+            start = time.time()
             A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning=self.pruning, threshold=threshold)
-            fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE)
+            print(f"SCORE execution time: {round(time.time() - start, 2)}s")
+
+            start = time.time()
+            fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, compute_SID)
+            print(f"Metrics: SHD - {SHD}, SID - {SID}. Computation time: {round(time.time()-start, 2)}s")
             run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
-        self.config_logs(run_logs)
+        self.config_logs(run_logs, compute_SID)
 
     def run_experiment(self, N, eta_G, eta_H):
         start = time.time()
@@ -156,11 +174,12 @@ class SteinFastExperiment(Experiment):
         run = 0
         tot_runs = len(param_grid)
         for params in param_grid:
+            print(f"Start experiment {run+1}/{tot_runs} with parameters: {params}")
             self.run_config(params, N, eta_G, eta_H)
             self.save_logs()
 
             run += 1
-            print(f"Run {run}/{tot_runs} ------ {round(time.time() - start, 2)}s ------")
+            print(f"Run {run}/{tot_runs} ------ {round(time.time() - start, 2)}s ------ \n")
 
 
 if __name__ == "__main__":
@@ -175,7 +194,7 @@ if __name__ == "__main__":
 
     # General
     data_type = 'Gauss'
-    num_tests = 10
+    num_tests =3
 
     # Pruning algorithm: ["Fast", "Stein", "CAM"]
     pruning = "Fast"
@@ -184,9 +203,9 @@ if __name__ == "__main__":
         # d_values = [10, 20, 50, 100, 200, 500, 1000]
         # thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
         # for s0 in ['d', '4d']:
-        d_values = [500, 1000]
+        d_values = [500]
         thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
-        for s0 in ['d', '4d']:
+        for s0 in ['4d']:
             # output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
             output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
             experiment = SteinFastExperiment(d_values, num_tests, s0, data_type, thresholds, pruning, output_file)

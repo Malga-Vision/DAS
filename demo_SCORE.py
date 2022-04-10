@@ -16,7 +16,7 @@ def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', G
 
 # Data generation paramters
 graph_type = 'ER'
-d = 10
+d = 500
 s0 = d
 N = 1000
 
