@@ -1,5 +1,6 @@
 from stein import *
 import cdt
+import pickle as pkl
 
 def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
     """
@@ -26,13 +27,13 @@ X, adj = generate(d, s0, N, GP=True)
 eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
-pruning = "Fast"
-threshold = 0.1 # None for CAM
+pruning = "FastCAM"
+threshold = 0.01 # None for CAM
 
 # Test: provo a elevare a esponenziale la funzione discriminatoria,e  diminuire accordingly threshold
-start = time.time()
-A_SCORE, top_order_SCORE, _, _ =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold = threshold)
-print(f"Excution time: ----- {round(time.time() - start, 2)}s -----")
+A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold = threshold)
+print(f"SCORE execution time: ----- {round(SCORE_time, 2)}s -----")
+print(f"Total execution time: ----- {round(tot_time, 2)}s -----")
 print(f"Pruning: {pruning}, Threshold: {threshold}")
 print("SHD : {}".format(SHD(A_SCORE, adj)))
 print("SID: {}".format(int(cdt.metrics.SID(target=adj, pred=A_SCORE))))

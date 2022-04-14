@@ -26,7 +26,7 @@ class Experiment(metaclass=abc.ABCMeta):
         """Logs of a tested configuration"""
         raise NotImplementedError
 
-    def metrics(self, A_SCORE, adj, top_order_SCORE, compute_SID):
+    def metrics(self, A_SCORE, adj, top_order_SCORE, compute_SID=True):
             fn, fp, rev = edge_errors(A_SCORE, adj)
             SHD = sum((fn, fp, rev))
 
@@ -103,7 +103,7 @@ class CAMExperiment(Experiment):
             print(f"Run {run}/{tot_runs} ------ {round(time.time() - start, 2)}s ------")
 
 
-class SteinFastExperiment(Experiment):
+class FastExperiment(Experiment):
     def __init__(self, d_values, num_tests, s0, data_type, thresholds, pruning, output_file):
         self.d_values = d_values
         self.num_tests = num_tests
@@ -194,21 +194,21 @@ if __name__ == "__main__":
 
     # General
     data_type = 'Gauss'
-    num_tests =3
+    num_tests = 10
 
-    # Pruning algorithm: ["Fast", "Stein", "CAM"]
-    pruning = "Fast"
+    # Pruning algorithm: ["Fast", "FastCAM", "CAM"]
+    pruning = "FastCAM"
 
-    if pruning == "Fast" or pruning == "Stein":
+    if pruning == "Fast" or pruning == "FastCAM":
         # d_values = [10, 20, 50, 100, 200, 500, 1000]
         # thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
         # for s0 in ['d', '4d']:
-        d_values = [500]
-        thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
-        for s0 in ['4d']:
+        d_values = [500, 1000]
+        thresholds = [0.01, 0.05]
+        for s0 in ['d', '4d']:
             # output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
             output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
-            experiment = SteinFastExperiment(d_values, num_tests, s0, data_type, thresholds, pruning, output_file)
+            experiment = FastExperiment(d_values, num_tests, s0, data_type, thresholds, pruning, output_file)
             experiment.run_experiment(N, eta_G, eta_H)
 
     elif pruning == "CAM":

@@ -160,7 +160,7 @@ def fast_pruning(X, top_order, eta_G, threshold):
         # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
         # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
 
-        # N x remaining_nodees x remaining_nodes
+        # N x remaining_nodes x remaining_nodes
         hess_remaining = hess[:, remaining_nodes, :]
         hess_remaining = hess_remaining[:, :, remaining_nodes]
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
@@ -230,6 +230,8 @@ def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, disper
         A_SCORE = Stein_pruning(X, top_order, eta_G, threshold = threshold)
     elif pruning == "Fast":
         A_SCORE = fast_pruning(X, top_order, eta_G, threshold=threshold)
+    elif "FastCAM": #CAMFast
+        A_SCORE = cam_pruning(fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
     else:
         raise Exception("Unknown pruning method")
 
