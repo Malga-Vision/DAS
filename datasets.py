@@ -33,5 +33,3 @@ gold_standard_path = "/data/francescom/dream5/DREAM5_network_inference_challenge
 
 X = dream_data(path_to_data)
 A = dream_adj(gold_standard_path, X.shape)
-
-print("End")

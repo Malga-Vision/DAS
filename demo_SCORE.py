@@ -1,6 +1,5 @@
 from stein import *
 import cdt
-import pickle as pkl
 
 def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
     """
