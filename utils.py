@@ -103,7 +103,7 @@ class Dist(object):
         return l
 
 
-def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
+def generate(d=None, s0=None, N=1000, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
     """
         Args:
             d (int): num of nodes
