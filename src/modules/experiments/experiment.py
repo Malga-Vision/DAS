@@ -9,15 +9,6 @@ from modules.stein import num_errors
 class Experiment(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
-    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, output_file):
-        self.d_values = d_values
-        self.num_tests = num_tests
-        self.s0 = s0
-        self.data_type = data_type
-        self.cam_cutoff = cam_cutoff
-        self.output_file = output_file
-
-    @abc.abstractmethod
     def run_config(self, params, N, eta_G, eta_H):
         """Run self.num_tests experiment on a given configuration"""
         raise NotImplementedError
@@ -28,7 +19,7 @@ class Experiment(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def config_logs(self, run_logs):
+    def config_logs(self, run_logs, compute_SID):
         """Logs of a tested configuration"""
         raise NotImplementedError
 

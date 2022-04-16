@@ -28,7 +28,7 @@ pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot
 fn, fp, rev = edge_errors(A_SCORE, adj)
 shd = SHD(A_SCORE, adj)
 # FAST logs
-with open(f'test_logs_fast.txt', 'w') as f:
+with open(f'../logs/test/test_logs_fast.txt', 'w') as f:
     f.writelines(f'SHD: {shd}\n')
     f.writelines(f'False negative: {fn}\n')
     f.writelines(f'False positive: {fp}\n')
@@ -44,7 +44,7 @@ cam_time = time.time() - start
 tot_time += cam_time
 shd = SHD(A_SCORE, adj)
 fn, fp, rev = edge_errors(A_SCORE, adj)
-with open(f'test_logs_fastcam.txt', 'w') as f:
+with open(f'../logs/test/test_logs_fastcam.txt', 'w') as f:
     f.writelines(f'SHD: {shd}\n')
     f.writelines(f'False negative: {fn}\n')
     f.writelines(f'False positive: {fp}\n')

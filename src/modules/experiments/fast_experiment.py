@@ -1,18 +1,20 @@
 import numpy as np
-import time
 
 from sklearn.model_selection import ParameterGrid
 
 from modules.utils import generate, pretty_evaluate
-from modules.stein import SCORE, cam_pruning, fast_pruning
+from modules.stein import SCORE
 from modules.experiments.experiment import Experiment
 
 class FastExperiment(Experiment):
-    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, output_file, thresholds, pruning):
-        super.__init__(d_values, num_tests, s0, data_type, cam_cutoff, output_file)
+    def __init__(self, d_values, num_tests, s0, data_type, thresholds):
+        self.d_values = d_values
+        self.num_tests = num_tests
+        self.s0 = s0
+        self.data_type = data_type
         self.thresholds = thresholds
-        self.pruning = pruning
 
+        self.output_file = f"../logs/exp/fast_{s0}_median_{d_values[-1]}.csv"
         self.logs = []
         self.columns = [
             'V', 'E', 'N', 'threshold', 'fn', 'fp', 'reversed', 'SHD', 'SID' , 'D_top', 'SCORE time [s]','Total time [s]'
@@ -45,7 +47,7 @@ class FastExperiment(Experiment):
         """
         A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold)
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, compute_SID)
-        pretty_evaluate(self.pruning, threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
+        pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
         return A_SCORE, top_order_SCORE, SCORE_time, tot_time

@@ -186,9 +186,10 @@ def fullAdj2Order(A):
 def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
     save_path = "./"
 
+
     data_np = np.array(X.detach().cpu().numpy())
     data_csv_path = np_to_csv(data_np, save_path)
-    dag_csv_path = np_to_csv(A, save_path)
+    dag_csv_path = np_to_csv(A, save_path) 
 
     arguments = dict()
     arguments['{PATH_DATA}'] = data_csv_path

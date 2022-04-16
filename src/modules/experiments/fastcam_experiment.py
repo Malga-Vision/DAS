@@ -10,23 +10,22 @@ from modules.stein import SCORE, cam_pruning, fast_pruning
 from modules.experiments.fast_experiment import FastExperiment
 
 class FastCAMExperiment(FastExperiment):
-    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, output_file, thresholds, pruning):
-        super.__init__(d_values, num_tests, s0, data_type, cam_cutoff, output_file, thresholds, pruning)
-
-        self.fast_output = ""
-        self.fastcam_output = ""
+    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, thresholds):
+        super().__init__(d_values, num_tests, s0, data_type, thresholds)
+        
+        self.cam_cutoff = cam_cutoff
+        self.fast_output = f"../logs/exp/fast_{s0}_median_{d_values[-1]}.csv"
+        self.fastcam_output = f"../logs/exp/fastcam_{s0}_median_{d_values[-1]}.csv"
         self.fast_logs = []
         self.fastcam_logs = []
 
     def get_params(self):
         return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds}))
 
-    @overrides
     def save_logs(self, logs, path):
-        df = pd.DataFrame(logs, columns =self.columns)
+        df = pd.DataFrame(logs, columns=self.columns)
         df.to_csv(path)
 
-    @overrides
     def config_logs(self, run_logs, compute_SID):
         logs = []
         mean_logs = np.mean(run_logs, axis=0)
@@ -55,10 +54,10 @@ class FastCAMExperiment(FastExperiment):
         tot_time = fast_time + (time.time() - start)
 
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, compute_SID)
-        pretty_evaluate(self.pruning, threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
+        pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
-    @overrides
+
     def run_config(self, params, N, eta_G, eta_H):
         d = params['d']
         threshold = params['threshold']
@@ -73,14 +72,13 @@ class FastCAMExperiment(FastExperiment):
         for k in range(self.num_tests):
             print(f"Iteration {k+1}/{self.num_tests}")
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
+            
             A_SCORE, top_order_SCORE, SCORE_time, tot_time = self.fast(X, adj, eta_G, eta_H, threshold, d, s0, N, compute_SID, fast_logs)
-
-            if self.pruning == "FastCAM":
-                self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, tot_time, compute_SID, fastcam_logs)
+            self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, tot_time, compute_SID, fastcam_logs)
 
 
-        fast_logs = self.config_logs(fast_logs, compute_SID)
-        self.save_logs(fast_logs, self.fast_output)
+        self.fast_logs = self.config_logs(fast_logs, compute_SID)
+        self.save_logs(self.fast_logs, self.fast_output)
 
-        fastcam_logs = self.config_logs(fastcam_logs, compute_SID)
-        self.save_logs(fastcam_logs, self.fastcam_output)
+        self.fastcam_logs = self.config_logs(fastcam_logs, compute_SID)
+        self.save_logs(self.fastcam_logs, self.fastcam_output)

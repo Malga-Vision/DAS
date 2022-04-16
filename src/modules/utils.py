@@ -243,10 +243,11 @@ def np_to_csv(array, save_path):
 
 
 def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid):
-    fn, fp, rev = edge_errors(adj, A_SCORE)
+    fn, fp, rev = edge_errors(A_SCORE, adj)
 
     pretty = f"""
 ----------------------------------------------------
+
 SCORE execution time:               {round(SCORE_time, 2)}s
 Total execution time:               {round(tot_time, 2)}s
 
