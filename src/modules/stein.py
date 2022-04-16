@@ -1,7 +1,8 @@
 import torch
 import time
 
-from utils import *
+from cdt.utils.R import launch_R_script
+from modules.utils import *
 
 
 def Stein_hess_diag(X, eta_G, eta_H, s = None):
@@ -205,7 +206,7 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
             os.remove(arguments['{PATH_DATA}'])
             os.remove(arguments['{PATH_DAG}'])
             return A
-        dag = launch_R_script("../../R_code/cam_pruning.R", arguments, output_function=retrieve_result)
+        dag = launch_R_script("../R_code/cam_pruning.R", arguments, output_function=retrieve_result)
         return dag
     else:
         def retrieve_result():

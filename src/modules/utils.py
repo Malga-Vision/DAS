@@ -14,9 +14,7 @@ from torch.distributions import MultivariateNormal, Normal, Laplace, Gumbel
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.feature_selection import SelectFromModel
 
-from cdt.utils.R import RPackages, launch_R_script
-from cdt.metrics import retrieve_adjacency_matrix
-
+from cdt.metrics import retrieve_adjacency_matrix, SID
 
 class Dist(object):
     def __init__(self, d, noise_std = 1, noise_type = 'Gauss', adjacency = None, GP = True, lengthscale = 1, f_magn = 1, GraNDAG_like = False):
@@ -103,6 +101,10 @@ class Dist(object):
         return l
 
 
+
+############## DAG ##############
+
+
 def generate(d=None, s0=None, N=1000, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
     """
         Args:
@@ -110,9 +112,11 @@ def generate(d=None, s0=None, N=1000, noise_std = 1, noise_type = 'Gauss', graph
             s0 (int): expected num of edges
             graph_type (str): ER, SF
     """
+    print("Generating data...", end=" ", flush=True)
     adjacency = simulate_dag(d, s0, graph_type, triu=True)
     teacher = Dist(d, noise_std, noise_type, adjacency, GP = GP, lengthscale=lengthscale)
     X, noise_var = teacher.sample(N)
+    print("Done")
     return X, adjacency
 
 
@@ -170,57 +174,7 @@ def full_DAG(top_order):
     return A
 
 
-def np_to_csv(array, save_path):
-    """
-    Convert np array to .csv
-    array: numpy array
-        the numpy array to convert to csv
-    save_path: str
-        where to temporarily save the csv
-    Return the path to the csv file
-    """
-    id = str(uuid.uuid4())
-    output = os.path.join(os.path.dirname(save_path), 'tmp_' + id + '.csv')
-
-    df = pd.DataFrame(array)
-    df.to_csv(output, header=False, index=False)
-
-    return output
-
-
-def cam_pruning_(model_adj, data, cutoff, save_path, verbose=False):
-    # convert numpy data to csv, so R can access them
-    data_np = np.array(data.detach().cpu().numpy())
-    data_csv_path = np_to_csv(data_np, save_path)
-    dag_csv_path = np_to_csv(model_adj, save_path)
-
-    #dag_pruned = cam_pruning(path_data, path_dag, cutoff, verbose)
-    #if not RPackages.CAM:
-    #    raise ImportError("R Package CAM is not available.")
-
-    arguments = dict()
-    arguments['{PATH_DATA}'] = data_csv_path
-    arguments['{PATH_DAG}'] = dag_csv_path
-    arguments['{PATH_RESULTS}'] = os.path.join(save_path, "results.csv")
-    arguments['{CUTOFF}'] = str(cutoff)
-
-    if verbose:
-        arguments['{VERBOSE}'] = "TRUE"
-    else:
-        arguments['{VERBOSE}'] = "FALSE"
-
-    def retrieve_result():
-        return pd.read_csv(arguments['{PATH_RESULTS}']).values
-
-    cam_pruning_filepath = "./cam_pruning.R"
-    dag_pruned = launch_R_script(cam_pruning_filepath,
-                                     arguments, output_function=retrieve_result)
-
-    # remove the temporary csv files
-    os.remove(data_csv_path)
-    os.remove(dag_csv_path)
-
-    return dag_pruned
+############## PRUNING ##############
 
 
 def pns_(model_adj, x, num_neighbors, thresh):
@@ -241,6 +195,9 @@ def pns_(model_adj, x, num_neighbors, thresh):
         model_adj[:, node] *= mask_selected
 
     return model_adj
+
+
+############## METRICS ##############
 
 
 def edge_errors(pred, target):
@@ -264,12 +221,68 @@ def SHD(pred, target):
     return sum(edge_errors(pred, target))
 
 
-def save_dict(data, filename):
-    a_file = open(filename, "w")
-    json.dump(data, a_file)
-    a_file.close()
-    
-def load_dict(filename):
-    with open(filename) as f:
-        dic = json.loads(f.read())
-    return dic
+############## LOGGING ##############
+
+
+def np_to_csv(array, save_path):
+    """
+    Convert np array to .csv
+    array: numpy array
+        the numpy array to convert to csv
+    save_path: str
+        where to temporarily save the csv
+    Return the path to the csv file
+    """
+    id = str(uuid.uuid4())
+    output = os.path.join(os.path.dirname(save_path), 'tmp_' + id + '.csv')
+
+    df = pd.DataFrame(array)
+    df.to_csv(output, header=False, index=False)
+
+    return output
+
+
+def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid):
+    fn, fp, rev = edge_errors(adj, A_SCORE)
+
+    pretty = f"""
+----------------------------------------------------
+SCORE execution time:               {round(SCORE_time, 2)}s
+Total execution time:               {round(tot_time, 2)}s
+
+----------------------------------------------------
+
+Pruning:                            {pruning}
+Threshold:                          {threshold}
+
+----------------------------------------------------
+
+Topological order errors            {top_order_err}
+False negative                      {int(fn)}
+False positive                      {int(fp)}
+Reversed                            {int(rev)}
+SHD:                                {SHD(A_SCORE, adj)}
+    """
+
+    if sid:
+        pretty += f"""
+SID:                                {int(SID(target=adj, pred=A_SCORE))}
+"""
+
+    print(pretty)
+
+
+class Stage(object):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __enter__(self):
+        self.start = default_timer()
+        print(self.msg, flush=True)
+        return self
+
+    def __exit__(self, *args):
+        t = default_timer() - self.start
+        print(f"Done {t:.2f} seconds", flush=True)
+        print()
+        self.time = t  

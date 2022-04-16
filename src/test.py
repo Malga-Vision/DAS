@@ -1,6 +1,6 @@
 import cdt
-from datasets import *
-from stein import *
+from modules.data import *
+from modules.stein import *
 
 def main():
     # Args

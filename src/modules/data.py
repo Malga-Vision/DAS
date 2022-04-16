@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from utils import SHD
+from modules.utils import SHD
 
 def dream_data(path_to_data):
     """

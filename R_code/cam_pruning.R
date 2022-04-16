@@ -1,10 +1,10 @@
 #library(CAM)
 library(mgcv)
 
-source("train_gam.R")
-source("selGam.R")
+source("../R_code/train_gam.R")
+source("../R_code/selGam.R")
 #source("selGamBoost.R")
-source("pruning.R")
+source("../R_code/pruning.R")
 
 
 dataset <- read.csv(file='{PATH_DATA}', header=FALSE, sep=",")
