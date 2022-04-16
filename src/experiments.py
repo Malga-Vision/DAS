@@ -204,15 +204,15 @@ if __name__ == "__main__":
     num_tests = 10
 
     # Pruning algorithm: ["Fast", "FastCAM", "CAM"]
-    pruning = "Fast"
+    pruning = "FastCAM"
 
     if pruning == "Fast" or pruning == "FastCAM":
         # d_values = [10, 20, 50, 100, 200, 500, 1000]
         # thresholds = [0.05, 0.1, 0.15, 0.2, 0.25]
         # for s0 in ['d', '4d']:
-        d_values = [500]
-        thresholds = [0.05, 0.1]
-        for s0 in ['4d']:
+        d_values = [10, 20, 50, 100, 200]
+        thresholds = [0.01]
+        for s0 in ['d', '4d']:
             # output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
             output_file = f"{pruning.lower()}_{s0}_{data_type}_{d_values[-1]}.csv"
             experiment = FastExperiment(d_values, num_tests, s0, data_type, thresholds, pruning, output_file)

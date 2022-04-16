@@ -6,4 +6,3 @@ __pycache__
 *.swp
 *.csv
 data
-*logs

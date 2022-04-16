@@ -130,7 +130,6 @@ def Stein_pruning(X, top_order, eta, threshold = 0.1):
         p_mean = p.mean(axis=0).abs()
         s_l = 1 / p_mean[remaining_nodes.index(l)]
         parents = [remaining_nodes[i] for i in torch.where(p_mean > threshold / s_l)[0] if top_order[i] != l]
-        #parents = torch.where(p.mean(axis=0) > 0.1)[0]
         A[parents, l] = 1
         A[l, l] = 0
         remaining_nodes.remove(l)
@@ -165,7 +164,8 @@ def fast_pruning(X, top_order, eta_G, threshold):
         hess_remaining = hess_remaining[:, :, remaining_nodes]
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
         parents = []
-        for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
+        for j in torch.where(torch.abs(torch.median(hess_l, dim=0).values) > threshold)[0]:
+        # for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
             if top_order[j] != l: # ?!
                 parents.append(remaining_nodes[j])
 
@@ -205,7 +205,7 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
             os.remove(arguments['{PATH_DATA}'])
             os.remove(arguments['{PATH_DAG}'])
             return A
-        dag = launch_R_script("./cam_pruning.R", arguments, output_function=retrieve_result)
+        dag = launch_R_script("../../R_code/cam_pruning.R", arguments, output_function=retrieve_result)
         return dag
     else:
         def retrieve_result():
