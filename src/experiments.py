@@ -17,7 +17,7 @@ if __name__ == "__main__":
     eta_H = 0.001
 
     # Experiments parameters
-    pruning = "CAM" # ["Fast", "FastCAM", "CAM"]
+    pruning = "FastCAM" # ["Fast", "FastCAM", "CAM"]
     # d_values = [100, 200]
     # thresholds = [0.01, 0.05]
     d_values = [10]

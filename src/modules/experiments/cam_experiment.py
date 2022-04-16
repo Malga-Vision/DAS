@@ -28,7 +28,7 @@ class CAMExperiment(Experiment):
         return list(ParameterGrid({'d': self.d_values, 'cutoff': [self.cam_cutoff]}))
 
 
-    def config_logs(self, run_logs, compute_SID):
+    def config_logs(self, run_logs, sid):
         mean_logs = np.mean(run_logs, axis=0)
         std_logs = np.std(run_logs, axis=0)
         logs = []
@@ -37,7 +37,7 @@ class CAMExperiment(Experiment):
             s = std_logs[i]
             if self.columns[i] in ["V", "E", "N"]:
                 logs.append(f"{int(m)}")
-            elif not compute_SID and self.columns[i] == "SID":
+            elif not sid and self.columns[i] == "SID":
                 logs.append(None)
             else:
                 logs.append(f"{round(m, 2)} +- {round(s, 2)}")
@@ -48,19 +48,16 @@ class CAMExperiment(Experiment):
         d = params['d']
         cam_cutoff = params['cutoff']
         s0 = self.set_s0(d)
-
-        compute_SID = True
-        if d > 200:
-            compute_SID = False
+        sid = self.compute_SID(d)
         
         run_logs = []
         for k in range(self.num_tests):
             print(f"Iteration {k+1}/{self.num_tests}")
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
             A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cutoff=cam_cutoff, pruning="CAM")
-            fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, compute_SID)
-            pretty_evaluate("CAM", None, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
+            fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
+            pretty_evaluate("CAM", None, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid)
             run_logs.append([d, s0, N, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
-        self.config_logs(run_logs, compute_SID)
+        self.config_logs(run_logs, sid)
         self.save_logs()

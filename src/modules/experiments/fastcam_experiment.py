@@ -22,14 +22,19 @@ class FastCAMExperiment(FastExperiment):
     def get_params(self):
         return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds}))
 
-    def save_logs(self, logs, path):
-        df = pd.DataFrame(logs, columns=self.columns)
-        df.to_csv(path)
+    def save_logs(self, logtype):
+        if logtype=="fast":
+            df = pd.DataFrame(self.fast_logs, columns=self.columns)
+            df.to_csv(self.fast_output)
+        else:
+            df = pd.DataFrame(self.fastcam_logs, columns=self.columns)
+            df.to_csv(self.fastcam_output)
+            
 
-    def config_logs(self, run_logs, compute_SID):
-        logs = []
+    def config_logs(self, run_logs, sid, logtype):
         mean_logs = np.mean(run_logs, axis=0)
         std_logs = np.std(run_logs, axis=0)
+        logs = []
         for i in range(len(self.columns)):
             m = mean_logs[i]
             s = std_logs[i]
@@ -37,15 +42,18 @@ class FastCAMExperiment(FastExperiment):
                 logs.append(f"{int(m)}")
             elif self.columns[i] == 'threshold':
                 logs.append(round(m, 2))
-            elif not compute_SID and self.columns[i] == "SID":
+            elif not sid and self.columns[i] == "SID":
                 logs.append(None)
             else:
                 logs.append(f"{round(m, 2)} +- {round(s, 2)}")
         
-        return logs
+        if logtype == "fast":
+            self.fast_logs.append(logs)
+        else:
+            self.fastcam_logs.append(logs)
 
 
-    def fastcam(self, X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, fast_time, compute_SID, run_logs):
+    def fastcam(self, X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, fast_time, sid, run_logs):
         """
         Apply CAM pruning to adjacency matrix found by Fast pruning. Update logs
         """
@@ -53,8 +61,8 @@ class FastCAMExperiment(FastExperiment):
         A_SCORE, cam_pruning(A_SCORE, X, self.cam_cutoff)
         tot_time = fast_time + (time.time() - start)
 
-        fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, compute_SID)
-        pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, compute_SID)
+        fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
+        pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid)
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
 
@@ -62,10 +70,7 @@ class FastCAMExperiment(FastExperiment):
         d = params['d']
         threshold = params['threshold']
         s0 = self.set_s0(d)
-
-        compute_SID = True
-        if d > 200:
-            compute_SID = False
+        sid = self.compute_SID(d)
 
         fast_logs = []
         fastcam_logs = []
@@ -73,12 +78,12 @@ class FastCAMExperiment(FastExperiment):
             print(f"Iteration {k+1}/{self.num_tests}")
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
             
-            A_SCORE, top_order_SCORE, SCORE_time, tot_time = self.fast(X, adj, eta_G, eta_H, threshold, d, s0, N, compute_SID, fast_logs)
-            self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, tot_time, compute_SID, fastcam_logs)
+            A_SCORE, top_order_SCORE, SCORE_time, tot_time = self.fast(X, adj, eta_G, eta_H, threshold, d, s0, N, sid, fast_logs)
+            self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, tot_time, sid, fastcam_logs)
 
 
-        self.fast_logs = self.config_logs(fast_logs, compute_SID)
-        self.save_logs(self.fast_logs, self.fast_output)
+        self.config_logs(fast_logs, sid, "fast")
+        self.save_logs("fast")
 
-        self.fastcam_logs = self.config_logs(fastcam_logs, compute_SID)
-        self.save_logs(self.fastcam_logs, self.fastcam_output)
+        self.config_logs(fastcam_logs, sid, "fastcam")
+        self.save_logs("fastcam")

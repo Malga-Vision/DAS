@@ -59,6 +59,12 @@ class Experiment(metaclass=abc.ABCMeta):
             raise ValueError("Forbidden s0 value")
         return s0
 
+    def compute_SID(self, d):
+        sid = True
+        if d > 200:
+            sid = False
+        return sid
+
     def save_logs(self):
         df = pd.DataFrame(self.logs, columns =self.columns)
         df.to_csv(self.output_file)
