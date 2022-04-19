@@ -58,7 +58,7 @@ class FastCAMExperiment(FastExperiment):
         Apply CAM pruning to adjacency matrix found by Fast pruning. Update logs
         """
         start = time.time()
-        A_SCORE, cam_pruning(A_SCORE, X, self.cam_cutoff)
+        A_SCORE = cam_pruning(A_SCORE, X, self.cam_cutoff)
         tot_time = fast_time + (time.time() - start)
 
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)

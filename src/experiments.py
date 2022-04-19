@@ -9,7 +9,7 @@ if __name__ == "__main__":
     """
     # General
     data_type = 'Gauss'
-    num_tests = 2
+    num_tests = 10
 
     # Regression parameters
     N = 1000
@@ -18,10 +18,8 @@ if __name__ == "__main__":
 
     # Experiments parameters
     pruning = "FastCAM" # ["Fast", "FastCAM", "CAM"]
-    # d_values = [100, 200]
-    # thresholds = [0.01, 0.05]
-    d_values = [10]
-    thresholds = [0.2]
+    d_values = [200]
+    thresholds = [0.05, 0.1]
     cam_cutoff = 0.001
 
     if pruning == "Fast":
@@ -35,7 +33,7 @@ if __name__ == "__main__":
             experiment.run_experiment(N, eta_G, eta_H)
 
     elif pruning == "FastCAM":
-        for s0 in ['d',]:
+        for s0 in ['d']:
             experiment = FastCAMExperiment(d_values, num_tests, s0, data_type, cam_cutoff, thresholds)
             experiment.run_experiment(N, eta_G, eta_H)
 

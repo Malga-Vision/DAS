@@ -271,19 +271,3 @@ SID:                                {int(SID(target=adj, pred=A_SCORE))}
 """
 
     print(pretty)
-
-
-class Stage(object):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __enter__(self):
-        self.start = default_timer()
-        print(self.msg, flush=True)
-        return self
-
-    def __exit__(self, *args):
-        t = default_timer() - self.start
-        print(f"Done {t:.2f} seconds", flush=True)
-        print()
-        self.time = t  
