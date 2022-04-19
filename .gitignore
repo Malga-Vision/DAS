@@ -5,4 +5,5 @@ __pycache__
 *.txt
 *.swp
 *.csv
-data
+score-logs
+plot_data
