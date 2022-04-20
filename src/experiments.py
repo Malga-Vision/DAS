@@ -17,8 +17,8 @@ if __name__ == "__main__":
     eta_H = 0.001
 
     # Experiments parameters
-    pruning = "FastCAM" # ["Fast", "FastCAM", "CAM"]
-    d_values = [200]
+    pruning = "CAM" # ["Fast", "FastCAM", "CAM"]
+    d_values = [200, 500]
     thresholds = [0.05, 0.1]
     cam_cutoff = 0.001
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     elif pruning == "CAM":
         for s0 in ['d', '4d']:
-            experiment = CAMExperiment(d_values, num_tests, s0, data_type, cam_cutoff)
+            experiment = CAMExperiment(d_values, num_tests, s0, data_type, cam_cutoff, pns=20)
             experiment.run_experiment(N, eta_G, eta_H)
 
     elif pruning == "FastCAM":

@@ -230,7 +230,7 @@ def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, disper
         if pns is None:
             A_SCORE = cam_pruning(full_DAG(top_order), X, cutoff)
         else: 
-            A_SCORE = cam_pruning(pns_(full_DAG(top_order), X, pns), X, cutoff)
+            A_SCORE = cam_pruning(pns_(full_DAG(top_order), X, pns, thresh=1), X, cutoff)
     elif pruning == 'Stein':
         A_SCORE = Stein_pruning(X, top_order, eta_G, threshold = threshold)
     elif pruning == "Fast":
