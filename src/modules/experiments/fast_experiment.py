@@ -47,7 +47,7 @@ class FastExperiment(Experiment):
         """
         A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold)
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-        pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid)
+        print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
         return A_SCORE, top_order_SCORE, SCORE_time, tot_time

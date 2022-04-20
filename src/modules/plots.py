@@ -3,24 +3,19 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def execution_time(input_path, output_path):
-  sns.set_theme(style="ticks")
-  data = pd.read_csv(input_path)
-  data['time'] = data['time'].apply(lambda x: float(x.split(' ')[0]))
-
+def broken_plot(data, metric, output_path, bottom_max, top_min, top_max, ticks_frequency):
   f, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, sharex=True, gridspec_kw={'hspace':0.2})
-  sns.barplot(x="V", y="time", hue="pruning", data=data, ax=ax_top)
-  sns.barplot(x="V", y="time", hue="pruning", data=data, ax=ax_bottom)
+  sns.barplot(x="V", y=metric, hue="pruning", data=data, ax=ax_top)
+  sns.barplot(x="V", y=metric, hue="pruning", data=data, ax=ax_bottom)
 
   # y-axis
-  top_min, top_max = (500, 5500)
   sns.despine(ax=ax_bottom)
   sns.despine(ax=ax_top, bottom=True)
-  ax_bottom.set_ylabel("Time[s]")
+  ax_bottom.set_ylabel(f"{metric}")
   ax_top.set_ylabel("")
   ax_top.set_ylim(top_min, top_max)   
-  ax_bottom.set_ylim(0, 300)
-  ax_top.set_yticks(np.arange(top_min, top_max, 1000))
+  ax_bottom.set_ylim(0, bottom_max)
+  ax_top.set_yticks(np.arange(top_min, top_max, ticks_frequency))
 
   # x-axis
   ax_top.get_xaxis().set_visible(False) # Remove x-axis from top graph
@@ -39,7 +34,21 @@ def execution_time(input_path, output_path):
   kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
   ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
 
-  plt.savefig(output_path, bbox_inches='tight')
+  # plt.savefig(output_path, bbox_inches='tight')
+  return f
+
+
+def execution_time(input_path, output_path, break_axis=True):
+  sns.set_theme(style="ticks")
+  data = pd.read_csv(input_path)
+  data['time'] = data['time'].apply(lambda x: float(x.split(' ')[0]))
+  if break_axis:
+    fig = broken_plot(data, 'time', output_path, 300, 500, 1500, 250)
+  else:
+    sns_plot = sns.barplot(x="V", y="time", hue="pruning", data=data)
+    fig = sns_plot.get_figure()
+
+  fig.savefig(output_path, bbox_inches='tight')
 
 
 def mean_vs_median(input_path, output_paths):
@@ -64,7 +73,18 @@ def mean_vs_median(input_path, output_paths):
   save_figure(h, output_paths[1])
 
 
-def algorithm_comparison(input_path, output_path):
+def metric_comparison(input_path, output_path, metric='SHD', break_axis=True):
   """
+  Compare SHD/SID metric for Fast, CAM, FastCAM pruning algorithms
   """
-  pass
+  sns.set_theme(style="ticks")
+  data = pd.read_csv(input_path)
+  data[metric] = data[metric].apply(lambda x: float(x.split(' ')[0]))
+  
+  if break_axis:
+    fig = broken_plot(data, metric, output_path, 300, 500, 5500, 1000)
+  else:
+    sns_plot = sns.barplot(x="V", y=metric, hue="pruning", data=data)
+    fig = sns_plot.get_figure()
+
+  fig.savefig(output_path, bbox_inches='tight')

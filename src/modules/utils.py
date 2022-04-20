@@ -270,4 +270,4 @@ SHD:                                {SHD(A_SCORE, adj)}
 SID:                                {int(SID(target=adj, pred=A_SCORE))}
 """
 
-    print(pretty)
+    return pretty

@@ -220,14 +220,17 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1):
+def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, pns=None):
     start_time = time.time()
     top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
     SCORE_time = time.time() - start_time
     
     start_time = time.time()
     if pruning == 'CAM':
-        A_SCORE = cam_pruning(full_DAG(top_order), X, cutoff)
+        if pns is None:
+            A_SCORE = cam_pruning(full_DAG(top_order), X, cutoff)
+        else: 
+            A_SCORE = cam_pruning(pns_(full_DAG(top_order), X, pns), X, cutoff)
     elif pruning == 'Stein':
         A_SCORE = Stein_pruning(X, top_order, eta_G, threshold = threshold)
     elif pruning == "Fast":

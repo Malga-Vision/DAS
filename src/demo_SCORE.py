@@ -22,7 +22,7 @@ sid = bool(d<=200)
 # Test: provo a elevare a esponenziale la funzione discriminatoria,e  diminuire accordingly threshold
 A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold = threshold)
 top_order_err = num_errors(top_order_SCORE, adj)
-pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
+print(pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid))
 
 
 fn, fp, rev = edge_errors(A_SCORE, adj)
