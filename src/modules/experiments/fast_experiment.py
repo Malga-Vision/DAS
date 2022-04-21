@@ -7,21 +7,21 @@ from modules.stein import SCORE
 from modules.experiments.experiment import Experiment
 
 class FastExperiment(Experiment):
-    def __init__(self, d_values, num_tests, s0, data_type, thresholds):
+    def __init__(self, d_values, num_tests, s0, data_type, thresholds, k):
         self.d_values = d_values
         self.num_tests = num_tests
         self.s0 = s0
         self.data_type = data_type
         self.thresholds = thresholds
-
-        self.output_file = f"../logs/exp/fast_{s0}_median_{d_values[-1]}.csv"
+        self.k = k
+        self.output_file = f"../logs/exp/fast_{s0}_{d_values[-1]}.csv"
         self.logs = []
         self.columns = [
             'V', 'E', 'N', 'threshold', 'fn', 'fp', 'reversed', 'SHD', 'SID' , 'D_top', 'SCORE time [s]','Total time [s]'
         ]
 
     def get_params(self):
-        return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds}))
+        return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds, 'k': [self.k]}))
 
     def config_logs(self, run_logs, sid):
         mean_logs = np.mean(run_logs, axis=0)
@@ -33,7 +33,7 @@ class FastExperiment(Experiment):
             if self.columns[i] in ["V", "E", "N"]:
                 logs.append(f"{int(m)}")
             elif self.columns[i] == 'threshold':
-                logs.append(round(m, 2))
+                logs.append(round(m, 5))
             elif not sid and self.columns[i] == "SID":
                 logs.append(None)
             else:
@@ -45,7 +45,7 @@ class FastExperiment(Experiment):
         """
         Run SCORE with Fast as pruning algorithm. Update logs
         """
-        A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold)
+        A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold, K=self.k)
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
         print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])

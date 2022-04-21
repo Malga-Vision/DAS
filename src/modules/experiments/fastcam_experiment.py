@@ -10,12 +10,17 @@ from modules.stein import SCORE, cam_pruning, fast_pruning
 from modules.experiments.fast_experiment import FastExperiment
 
 class FastCAMExperiment(FastExperiment):
-    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, thresholds):
-        super().__init__(d_values, num_tests, s0, data_type, thresholds)
+    def __init__(self, d_values, num_tests, s0, data_type, cam_cutoff, thresholds, k):
+        super().__init__(d_values, num_tests, s0, data_type, thresholds, k)
         
         self.cam_cutoff = cam_cutoff
-        self.fast_output = f"../logs/exp/fast_{s0}_median_{d_values[-1]}.csv"
-        self.fastcam_output = f"../logs/exp/fastcam_{s0}_median_{d_values[-1]}.csv"
+        if k is None:
+            self.fast_output = f"../logs/exp/fast_{s0}_{d_values[-1]}.csv"
+            self.fastcam_output = f"../logs/exp/fastcam_{s0}_{d_values[-1]}.csv"
+        else:
+            self.fast_output = f"../logs/exp/kfast_{k}_{s0}_{d_values[-1]}.csv"
+            self.fastcam_output = f"../logs/exp/kfastcam_{k}_{s0}_{d_values[-1]}.csv"
+
         self.fast_logs = []
         self.fastcam_logs = []
 
@@ -41,7 +46,7 @@ class FastCAMExperiment(FastExperiment):
             if self.columns[i] in ["V", "E", "N"]:
                 logs.append(f"{int(m)}")
             elif self.columns[i] == 'threshold':
-                logs.append(round(m, 2))
+                logs.append(round(m, 5))
             elif not sid and self.columns[i] == "SID":
                 logs.append(None)
             else:

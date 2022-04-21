@@ -176,6 +176,49 @@ def fast_pruning(X, top_order, eta_G, threshold):
     return A
 
 
+def K_fast_pruning(K, X, top_order, eta_G, threshold):
+    """
+    Args:
+        K: Like in pns, select only the K most probable parents, i.e. those with highest score derivative
+        X: N x D matrix of the samples
+        top_order: 1 x D vector of topoligical order. top_order[0] is source
+        eta_g: regularizer coefficient
+        threshold: Assign a parent for partial derivative greateq than threshold
+    """
+    d = X.shape[1]
+    remaining_nodes = list(range(d))
+    s = heuristic_kernel_width(X.detach()) # This actually changes at each iteration 
+    hess = Stein_hess_matrix(X, s, eta_G)
+
+    A = np.zeros((d,d))
+    for i in range(d-1):
+        l = top_order[-(i+1)]
+
+        # Results are not actually better, while way slower
+        # s = heuristic_kernel_width(X[:, remaining_nodes].detach())
+        # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
+        # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
+
+        # N x remaining_nodes x remaining_nodes
+        hess_remaining = hess[:, remaining_nodes, :]
+        hess_remaining = hess_remaining[:, :, remaining_nodes]
+        hess_l = hess_remaining[:, remaining_nodes.index(l), :]
+        parents = []
+        # hess_m = torch.abs(torch.median(hess_l, dim=0).values)
+        hess_m = torch.abs(hess_l.mean(dim=0))
+        m_values, m_indices = hess_m.sort(descending=True)
+        for j in range(0, min(K, len(m_values))):
+            if m_values[j] > threshold:
+                node = m_indices[j]
+            if top_order[node] != l: # ?!
+                parents.append(remaining_nodes[node])
+
+        A[parents, l] = 1
+        A[l, l] = 0
+        remaining_nodes.remove(l)
+    return A
+
+
 
 def fullAdj2Order(A):
     order = list(A.sum(axis=1).argsort())
@@ -220,7 +263,7 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, pns=None):
+def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, pns=None, K=None):
     start_time = time.time()
     top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
     SCORE_time = time.time() - start_time
@@ -233,8 +276,10 @@ def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, disper
             A_SCORE = cam_pruning(pns_(full_DAG(top_order), X, pns, thresh=1), X, cutoff)
     elif pruning == 'Stein':
         A_SCORE = Stein_pruning(X, top_order, eta_G, threshold = threshold)
-    elif pruning == "Fast":
+    elif pruning == "Fast" and K is None:
         A_SCORE = fast_pruning(X, top_order, eta_G, threshold=threshold)
+    elif pruning == "Fast" and K is not None:
+        A_SCORE = K_fast_pruning(K, X, top_order, eta_G, threshold=threshold)
     elif "FastCAM": #CAMFast
         A_SCORE = cam_pruning(fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
     else:

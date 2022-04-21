@@ -244,6 +244,7 @@ def np_to_csv(array, save_path):
 
 def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid):
     fn, fp, rev = edge_errors(A_SCORE, adj)
+    d = A_SCORE.shape[0]
 
     pretty = f"""
 ----------------------------------------------------
@@ -255,19 +256,20 @@ Total execution time:               {round(tot_time, 2)}s
 
 Pruning:                            {pruning}
 Threshold:                          {threshold}
+Number of nodes:                    {d}
 
 ----------------------------------------------------
 
-Topological order errors            {top_order_err}
-False negative                      {int(fn)}
-False positive                      {int(fp)}
-Reversed                            {int(rev)}
+Topological order errors:           {top_order_err}
+False negative:                     {int(fn)}
+False positive:                     {int(fp)}
+Reversed:                           {int(rev)}
 SHD:                                {SHD(A_SCORE, adj)}
     """
 
     if sid:
         pretty += f"""
 SID:                                {int(SID(target=adj, pred=A_SCORE))}
-"""
+""".lstrip()
 
     return pretty

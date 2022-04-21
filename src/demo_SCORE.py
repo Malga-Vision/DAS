@@ -16,39 +16,37 @@ eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 pruning = "Fast"
-threshold = 0.05 # None for CAM
+threshold = 0.0001 # None for CAM
 sid = bool(d<=200)
+K=5
+
+# """
+# Keep trehshold very low, such that it looks like zero. And select K according to how much you
+# are willing to wait. 
+# The key point is: I know exactly how much I am going to wait, because for d nodes and K param, I have 
+# d*K edges to check with CAM, that's it.
+# This way the threshold loses its improtance, K is a much more meaningful parameter + it is already in CAM
+# and finally, the trick I use retains it value, become the crucial point. 
+# Could I do same with pns setting it to 5? Yes, but it is way slower
+
+# plus, i have apriori control on running time
+# If CAM runs with O(.) complexity, than I can get an expected running time. 
+# """
 
 # Test: provo a elevare a esponenziale la funzione discriminatoria,e  diminuire accordingly threshold
-A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold = threshold)
+A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold=threshold, K=K)
 top_order_err = num_errors(top_order_SCORE, adj)
-print(pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid))
+pretty = pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
 
-
-fn, fp, rev = edge_errors(A_SCORE, adj)
-shd = SHD(A_SCORE, adj)
 # FAST logs
 with open(f'../logs/test/test_logs_fast.txt', 'a+') as f:
-    f.writelines(f'SHD: {shd}\n')
-    f.writelines(f'False negative: {fn}\n')
-    f.writelines(f'False positive: {fp}\n')
-    f.writelines(f'Reversed: {rev}\n')
-    f.writelines(f'SCORE time: {round(SCORE_time, 2)}s\n')
-    f.writelines(f'Total time: {round(tot_time, 2)}s\n')
-    f.writelines(f'Topological ordering errors: {num_errors(top_order_SCORE, adj)}\n')
+    f.writelines(pretty)
 
 # CAM
 start = time.time()
 A_SCORE = cam_pruning(A_SCORE, X, cam_cutoff)
 cam_time = time.time() - start
 tot_time += cam_time
-shd = SHD(A_SCORE, adj)
-fn, fp, rev = edge_errors(A_SCORE, adj)
+pretty = pretty_evaluate(pruning + "CAM", threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
 with open(f'../logs/test/test_logs_fastcam.txt', 'a+') as f:
-    f.writelines(f'SHD: {shd}\n')
-    f.writelines(f'False negative: {fn}\n')
-    f.writelines(f'False positive: {fp}\n')
-    f.writelines(f'Reversed: {rev}\n')
-    f.writelines(f'SCORE time: {round(SCORE_time, 2)}s\n')
-    f.writelines(f'Total time: {round(tot_time, 2)}s\n')
-    f.writelines(f'Topological ordering errors: {num_errors(top_order_SCORE, adj)}\n')
+    f.writelines(pretty)
