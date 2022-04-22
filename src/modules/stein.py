@@ -185,6 +185,7 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         eta_g: regularizer coefficient
         threshold: Assign a parent for partial derivative greateq than threshold
     """
+    K = K+1 # To account for A[l, l] = 0
     d = X.shape[1]
     remaining_nodes = list(range(d))
     s = heuristic_kernel_width(X.detach()) # This actually changes at each iteration 

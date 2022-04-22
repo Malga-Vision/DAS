@@ -25,7 +25,7 @@ class FastCAMExperiment(FastExperiment):
         self.fastcam_logs = []
 
     def get_params(self):
-        return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds}))
+        return list(ParameterGrid({'d': self.d_values, 'threshold': self.thresholds, 'k': [self.k]}))
 
     def save_logs(self, logtype):
         if logtype=="fast":
