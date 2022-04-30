@@ -207,12 +207,32 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         parents = []
         # hess_m = torch.abs(torch.median(hess_l, dim=0).values)
         hess_m = torch.abs(hess_l.mean(dim=0))
-        m_values, m_indices = hess_m.sort(descending=True)
-        for j in range(0, min(K, len(m_values))):
-            if m_values[j] > threshold:
-                node = m_indices[j]
-            if top_order[node] != l: # ?!
-                parents.append(remaining_nodes[node])
+
+
+        # threshold = torch.median(hess_m)
+        # threshold = hess_m.mean()
+        threshold = torch.quantile(hess_m, q=0.7) # mean, meadian
+
+        """
+        Median  non va bene: dico explicitly che prendo il 50% dei miei edges
+        O alzo il quantile, oppure uso un K dinamico
+        Anche il quantile dovrebbe essere dinamico, oppure 
+
+        Info nella devizione standard e nella mediana
+        La mediana mi darà il noise in qualunque situazione della vita, nel senso che non esiste che il 50 % dei nodi siano buoni
+        La deviazione standard anche mi quantifica il rumore.
+        """
+
+        for j in range(len(hess_m)):
+            if hess_m[j] > threshold and top_order[j] != l:
+                parents.append(remaining_nodes[j])
+                
+        # m_values, m_indices = hess_m.sort(descending=True)
+        # for j in range(0, min(K, len(m_values))):
+        #     if m_values[j] > threshold:
+        #         node = m_indices[j]
+        #     if top_order[node] != l: # ?!
+        #         parents.append(remaining_nodes[node])
 
         A[parents, l] = 1
         A[l, l] = 0
