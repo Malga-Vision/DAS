@@ -25,12 +25,28 @@ def Stein_hess_diag(X, eta_G, eta_H, s = None):
     return -G**2 + torch.matmul(torch.inverse(K + eta_H * torch.eye(n)), nabla2K)
 
 
+def Stein_hess_row(X, s, eta, l):
+    """
+    v-th row of the Hessian matrix
+    """
+    n, d = X.shape
+    
+    X_diff = X.unsqueeze(1)-X
+    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
+    
+    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
+    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
+    Gl = torch.einsum('i,ij->ij', G[:,l], G)
+    
+    nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
+    nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
+    
+    return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
+
+
 def Stein_hess_col(X_diff, G, K, v, s, eta, n):
     """
-        v-th col of the Hessian: vector of partial derivatives of score_v over all nodes
-
-        Return: 
-            Hess_v: 
+    v-th col of the Hessian matrix
     """
     Gv = torch.einsum('i,ij->ij', G[:,v], G)
     nabla2vK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,v], X_diff, K) / s**4
@@ -69,12 +85,12 @@ def Stein_hess_matrix(X, s, eta):
     
     return Hess
 
-# Try to compute Hess once and remove nodes each time
+
 def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
-    n, d = X.shape
+    _, d = X.shape
     order = []
     active_nodes = list(range(d))
-    for i in range(d-1):
+    for _ in range(d-1):
         H = Stein_hess_diag(X, eta_G, eta_H)
         if normalize_var:
             H = H / H.mean(axis=0)
@@ -91,7 +107,6 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
     order.append(active_nodes[0])
     order.reverse()
     return order
-
 
 
 def Stein_hess_parents(X, s, eta, l):
@@ -145,25 +160,22 @@ def fast_pruning(X, top_order, eta_G, threshold):
         eta_g: regularizer coefficient
         threshold: Assign a parent for partial derivative greateq than threshold
     """
-    d = X.shape[1]
+    d, n = X.shape
     remaining_nodes = list(range(d))
-    s = heuristic_kernel_width(X.detach()) # This actually changes at each iteration 
-    hess = Stein_hess_matrix(X, s, eta_G)
 
-    # TODO: Enforce acyclicity
     A = np.zeros((d,d))
     for i in range(d-1):
         l = top_order[-(i+1)]
+        X_remaining = X[:, remaining_nodes]
 
-        # Results are not actually better, while way slower
-        # s = heuristic_kernel_width(X[:, remaining_nodes].detach())
-        # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
-        # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
+        # Stein row estimation
+        s = heuristic_kernel_width(X_remaining.detach())
+        X_diff = X_remaining.unsqueeze(1)-X_remaining
+        K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
+        nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
+        G = torch.matmul(torch.inverse(K + eta_G * torch.eye(n)), nablaK)
+        hess_l = Stein_hess_row(X_diff, G, K, l, s, eta_G, n)
 
-        # N x remaining_nodes x remaining_nodes
-        hess_remaining = hess[:, remaining_nodes, :]
-        hess_remaining = hess_remaining[:, :, remaining_nodes]
-        hess_l = hess_remaining[:, remaining_nodes.index(l), :]
         parents = []
         for j in torch.where(torch.abs(torch.median(hess_l, dim=0).values) > threshold)[0]:
         # for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
@@ -186,28 +198,20 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         threshold: Assign a parent for partial derivative greateq than threshold
     """
     K = K+1 # To account for A[l, l] = 0
-    d = X.shape[1]
+    n, d = X.shape
     remaining_nodes = list(range(d))
-    s = heuristic_kernel_width(X.detach()) # This actually changes at each iteration 
-    hess = Stein_hess_matrix(X, s, eta_G)
 
     A = np.zeros((d,d))
     for i in range(d-1):
         l = top_order[-(i+1)]
+        X_remaining = X[:, remaining_nodes]
+        s = heuristic_kernel_width(X_remaining.detach())
+        hess_l = Stein_hess_row(X_remaining, s, eta_G, remaining_nodes.index(l))
 
-        # Results are not actually better, while way slower
-        # s = heuristic_kernel_width(X[:, remaining_nodes].detach())
-        # hess = Stein_hess_matrix(X[:, remaining_nodes], s, eta_G)
-        # hess_l = hess[:, remaining_nodes.index(l), :] # l-th row  N x D
-
-        # N x remaining_nodes x remaining_nodes
-        hess_remaining = hess[:, remaining_nodes, :]
-        hess_remaining = hess_remaining[:, :, remaining_nodes]
-        hess_l = hess_remaining[:, remaining_nodes.index(l), :]
-        parents = []
-        # hess_m = torch.abs(torch.median(hess_l, dim=0).values)
-        hess_m = torch.abs(hess_l.mean(dim=0))
+        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
+        # hess_m = torch.abs(hess_l.mean(dim=0))
         m_values, m_indices = hess_m.sort(descending=True)
+        parents = []
         for j in range(0, min(K, len(m_values))):
             if m_values[j] > threshold:
                 node = m_indices[j]
@@ -229,7 +233,6 @@ def fullAdj2Order(A):
 
 def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
     save_path = "./"
-
 
     data_np = np.array(X.detach().cpu().numpy())
     data_csv_path = np_to_csv(data_np, save_path)
@@ -264,25 +267,16 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, pns=None, K=None):
+def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, K=None):
     start_time = time.time()
     top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
     SCORE_time = time.time() - start_time
     
-    start_time = time.time()
-    if pruning == 'CAM':
-        if pns is None:
-            A_SCORE = cam_pruning(full_DAG(top_order), X, cutoff)
-        else: 
-            A_SCORE = cam_pruning(pns_(full_DAG(top_order), X, pns, thresh=1), X, cutoff)
-    elif pruning == 'Stein':
-        A_SCORE = Stein_pruning(X, top_order, eta_G, threshold = threshold)
-    elif pruning == "Fast" and K is None:
-        A_SCORE = fast_pruning(X, top_order, eta_G, threshold=threshold)
-    elif pruning == "Fast" and K is not None:
+
+    if pruning == "Fast" and K is not None:
         A_SCORE = K_fast_pruning(K, X, top_order, eta_G, threshold=threshold)
-    elif "FastCAM": #CAMFast
-        A_SCORE = cam_pruning(fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
+    elif pruning == "FastCAM": #CAMFast
+        A_SCORE = cam_pruning(K_fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
     else:
         raise Exception("Unknown pruning method")
 
