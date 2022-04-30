@@ -1,4 +1,3 @@
-import json
 import GPy
 import uuid
 import os
@@ -242,7 +241,7 @@ def np_to_csv(array, save_path):
     return output
 
 
-def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid):
+def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=None, pns=None):
     fn, fp, rev = edge_errors(A_SCORE, adj)
     d = A_SCORE.shape[0]
 
@@ -255,6 +254,8 @@ Total execution time:               {round(tot_time, 2)}s
 ----------------------------------------------------
 
 Pruning:                            {pruning}
+K:                                  {K}
+pns:                                {pns}
 Threshold:                          {threshold}
 Number of nodes:                    {d}
 

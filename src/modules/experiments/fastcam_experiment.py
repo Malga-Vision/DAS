@@ -6,7 +6,7 @@ from sklearn.model_selection import ParameterGrid
 from torch import overrides
 
 from modules.utils import generate, pretty_evaluate
-from modules.stein import SCORE, cam_pruning, fast_pruning
+from modules.stein import cam_pruning
 from modules.experiments.fast_experiment import FastExperiment
 
 class FastCAMExperiment(FastExperiment):
@@ -67,7 +67,7 @@ class FastCAMExperiment(FastExperiment):
         tot_time = fast_time + (time.time() - start)
 
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-        print(pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
+        print(pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid, K=self.k))
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
 

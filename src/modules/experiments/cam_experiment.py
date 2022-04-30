@@ -57,7 +57,7 @@ class CAMExperiment(Experiment):
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
             A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cutoff=cam_cutoff, pruning="CAM", pns=self.pns)
             fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-            print(pretty_evaluate("CAM", None, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
+            print(pretty_evaluate("CAM", None, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid, pns=self.pns))
             run_logs.append([d, s0, N, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
         self.config_logs(run_logs, sid)
