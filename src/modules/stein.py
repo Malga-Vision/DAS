@@ -20,78 +20,51 @@ def Stein_hess_diag(X, eta_G, eta_H, s = None):
     
     nablaK = -torch.einsum('kij,ik->kj', X_diff, K) / s**2
     G = torch.matmul(torch.inverse(K + eta_G * torch.eye(n)), nablaK)
+    K_inv = torch.inverse(K + eta_H * torch.eye(n))
     
     nabla2K = torch.einsum('kij,ik->kj', -1/s**2 + X_diff**2/s**4, K)
-    return -G**2 + torch.matmul(torch.inverse(K + eta_H * torch.eye(n)), nabla2K)
+    return -G**2 + torch.matmul(K_inv, nabla2K), G, K, K_inv, s
 
 
-def Stein_hess_row(X, s, eta, l):
+def Stein_hess_row(X, s, l, G, K, K_inv):
     """
     v-th row of the Hessian matrix
-    """
-    n, d = X.shape
-    
+    """    
     X_diff = X.unsqueeze(1)-X
-    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
+    # K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
     
-    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
+    # nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
+    # G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
     Gl = torch.einsum('i,ij->ij', G[:,l], G)
     
     nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
     nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
     
-    return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
+    # return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
+    return -Gl + torch.matmul(K_inv, nabla2lK)
 
 
-def Stein_hess_col(X_diff, G, K, v, s, eta, n):
-    """
-    v-th col of the Hessian matrix
-    """
-    Gv = torch.einsum('i,ij->ij', G[:,v], G)
-    nabla2vK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,v], X_diff, K) / s**4
-    nabla2vK[:,v] -= torch.einsum("ik->i", K) / s**2
-    Hess_v = -Gv + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2vK)
+def fast_parents(hess_l, K, l, threshold, remaining_nodes):
+        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
+        # hess_m = torch.abs(hess_l.mean(dim=0))
+        m_values, m_indices = hess_m.sort(descending=True)
+        parents = []
+        for j in range(0, min(K, len(m_values))):
+            if m_values[j] > threshold:
+                node = m_indices[j]
+                if node != l:
+                    parents.append(remaining_nodes[node])
 
-    return Hess_v
-
-
-# Would it be better to comptue only row of interest at each iteration?
-def Stein_hess_matrix(X, s, eta):
-    """
-    Compute the Stein Hessian estimator matrix for each sample in the dataset
-
-    Args:
-        X: N x D matrix of the data
-        s: kernel width estimator
-        eta: regularization coefficient
-
-    Return:
-        Hess: N x D x D hessian estimator of log(p(x))
-    """
-    n, d = X.shape
-    
-    X_diff = X.unsqueeze(1)-X
-    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-    
-    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK)
-    
-    # Compute the Hessian by column stacked together
-    Hess = Stein_hess_col(X_diff, G, K, 0, s, eta, n) # Hessian of col 0
-    Hess = Hess[:, None, :]
-    for v in range(1, d):
-        Hess = torch.hstack([Hess, Stein_hess_col(X_diff, G, K, v, s, eta, n)[:, None, :]])
-    
-    return Hess
+        return parents
 
 
-def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
+def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True, dispersion="var"):
     _, d = X.shape
+    A = np.zeros((d,d))
     order = []
     active_nodes = list(range(d))
     for _ in range(d-1):
-        H = Stein_hess_diag(X, eta_G, eta_H)
+        H, G, K, K_inv, s = Stein_hess_diag(X, eta_G, eta_H)
         if normalize_var:
             H = H / H.mean(axis=0)
         if dispersion == "var": # The one mentioned in the paper
@@ -101,12 +74,20 @@ def compute_top_order(X, eta_G, eta_H, normalize_var=True, dispersion="var"):
             l = int((H - med).abs().mean(axis=0).argmin())
         else:
             raise Exception("Unknown dispersion criterion")
+            
+        # parents
+        H_l = Stein_hess_row(X, s, l, G, K, K_inv)
+        parents = fast_parents(H_l, n_parents, l, threshold, active_nodes)
+        A[parents, l] = 1
+        A[l, l] = 0
         order.append(active_nodes[l])
         active_nodes.pop(l)
+
         X = torch.hstack([X[:,0:l], X[:,l+1:]])
+
     order.append(active_nodes[0])
     order.reverse()
-    return order
+    return order, A
 
 
 def Stein_hess_parents(X, s, eta, l):
@@ -269,16 +250,16 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
   
 def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, K=None):
     start_time = time.time()
-    top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
+    top_order, A_SCORE = compute_top_order(X, eta_G, eta_H, K, threshold, normalize_var, dispersion)
     SCORE_time = time.time() - start_time
     
 
-    if pruning == "Fast" and K is not None:
-        A_SCORE = K_fast_pruning(K, X, top_order, eta_G, threshold=threshold)
-    elif pruning == "FastCAM": #CAMFast
-        A_SCORE = cam_pruning(K_fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
-    else:
-        raise Exception("Unknown pruning method")
+    # if pruning == "Fast" and K is not None:
+    #     A_SCORE = K_fast_pruning(K, X, top_order, eta_G, threshold=threshold)
+    # elif pruning == "FastCAM": #CAMFast
+    #     A_SCORE = cam_pruning(K_fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
+    # else:
+    #     raise Exception("Unknown pruning method")
 
     return A_SCORE, top_order, SCORE_time, SCORE_time + (time.time() - start_time)
 
