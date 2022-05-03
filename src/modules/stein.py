@@ -205,34 +205,28 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         hess_remaining = hess_remaining[:, :, remaining_nodes]
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
         parents = []
-        # hess_m = torch.abs(torch.median(hess_l, dim=0).values)
-        hess_m = torch.abs(hess_l.mean(dim=0))
-
-
-        # threshold = torch.median(hess_m)
-        # threshold = hess_m.mean()
-        threshold = torch.quantile(hess_m, q=0.7) # mean, meadian
+        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
+        # hess_m = torch.abs(hess_l.mean(dim=0))
 
         """
-        Median  non va bene: dico explicitly che prendo il 50% dei miei edges
-        O alzo il quantile, oppure uso un K dinamico
-        Anche il quantile dovrebbe essere dinamico, oppure 
-
-        Info nella devizione standard e nella mediana
-        La mediana mi darà il noise in qualunque situazione della vita, nel senso che non esiste che il 50 % dei nodi siano buoni
-        La deviazione standard anche mi quantifica il rumore.
+        Opzione 1: Stay above the mean + CAM ==> nel paper diventa: "Stay above the mean. We additionally prune the resulting graph with CAM for graphs too dense to reduce the number of false positive."
+        Opzione 2: Stay above a "moving mean"
         """
+        t = 0
+        K = min(K, len(remaining_nodes))
+        topk_values, topk_indices = torch.topk(hess_m, K, sorted=False)
+        for j in range(K):
+            if topk_values[j] > max(threshold, t):
+                node = topk_indices[j]
+                if top_order[node] != l: # ?!
+                    parents.append(remaining_nodes[node])
 
-        for j in range(len(hess_m)):
-            if hess_m[j] > threshold and top_order[j] != l:
-                parents.append(remaining_nodes[j])
-                
         # m_values, m_indices = hess_m.sort(descending=True)
         # for j in range(0, min(K, len(m_values))):
-        #     if m_values[j] > threshold:
+        #     if m_values[j] > max(threshold, t):
         #         node = m_indices[j]
-        #     if top_order[node] != l: # ?!
-        #         parents.append(remaining_nodes[node])
+        #         if top_order[node] != l: # ?!
+        #             parents.append(remaining_nodes[node])
 
         A[parents, l] = 1
         A[l, l] = 0
@@ -284,7 +278,7 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, pns=None, K=None):
+def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0, pns=None, K=None):
     start_time = time.time()
     top_order = compute_top_order(X, eta_G, eta_H, normalize_var, dispersion)
     SCORE_time = time.time() - start_time

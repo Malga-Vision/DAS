@@ -7,12 +7,12 @@ def main():
     gold_standard_path = "/data/francescom/dream5/DREAM5_network_inference_challenge/Evaluation_scripts/INPUT/gold_standard_edges_only/DREAM5_NetworkInference_Edges_Network1.tsv"
 
     # Hyperparams
-    threshold = 0.05
+    threshold = 0.001
     eta_G = 0.001
     eta_H = 0.001
     cam_cutoff = 0.001
     sid=False
-    K=15
+    K=10
     pns=None
 
     # Logs paths
@@ -25,7 +25,7 @@ def main():
 
     A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Fast", threshold = threshold, pns=pns, K=K)
     top_order_err = num_errors(top_order_SCORE, A_truth)
-    pretty = pretty_evaluate("K-Fast", threshold, A_truth, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
+    pretty = pretty_evaluate("K-Fast", threshold, A_truth, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=K)
     print(pretty)
     
     # FAST logs

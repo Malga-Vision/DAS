@@ -5,8 +5,8 @@ import cdt
 
 # Data generation paramters
 graph_type = 'ER'
-d = 10
-s0 = d
+d = 100
+s0 = 4*d
 N = 1000
 
 X, adj = generate(d, s0, N, GP=True)
@@ -16,26 +16,24 @@ eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 pruning = "Fast"
-threshold = 0# None for CAM
+threshold = 0.001 # None for CAM
 sid = bool(d<=200)
 K=5
 pns=None
-
-
-# Test: provo a elevare a esponenziale la funzione discriminatoria,e  diminuire accordingly threshold
+    
 A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold=threshold, pns=pns, K=K)
 top_order_err = num_errors(top_order_SCORE, adj)
-pretty = pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
+pretty = pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=K)
 print(pretty)
 
 # CAM logs
 if pruning == "CAM":
-   with open(f'../logs/test/test_logs_cam.txt', 'a+') as f:
+   with open(f'../logs/test/test_logs_cam.txt', 'w+') as f:
     f.writelines(pretty) 
 
-elif False:
+else:
 # Fast logs
-    with open(f'../logs/test/test_logs_fast.txt', 'a+') as f:
+    with open(f'../logs/test/test_logs_fast.txt', 'w+') as f:
         f.writelines(pretty)
 
     # FastCAM logs
