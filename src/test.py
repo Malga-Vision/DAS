@@ -1,5 +1,7 @@
 from modules.data import *
 from modules.stein import *
+import cdt
+import networkx as nx
 
 def main():
     # Args
@@ -15,17 +17,33 @@ def main():
     K=15
     pns=None
 
-    # Logs paths
-    fast_path = f'../logs/test/dream5_fast_{threshold}.txt'
-    fastcam_path = f'../logs/test/dream5_fastcam_{threshold}.txt'
+    data = "Sachs"
 
-    # Data
-    X = dream_data(path_to_data)
-    A_truth = dream_adj(gold_standard_path, X.shape)
+    if data == "Dream":
+        # Logs paths
+        fast_path = f'../logs/test/dream5_fast_{threshold}.txt'
+        fastcam_path = f'../logs/test/dream5_fastcam_{threshold}.txt'
+
+        # Data
+        X = dream_data(path_to_data)
+        A_truth = dream_adj(gold_standard_path, X.shape)
+
+    elif data == "Sachs":
+        # Logs paths
+        fast_path = f'../logs/test/sachs_fast_{threshold}.txt'
+        fastcam_path = f'../logs/test/sachs_fastcam_{threshold}.txt'
+
+        # Data
+        X, G_target = cdt.data.load_dataset('sachs')
+        columns = list(X.columns)
+        X = torch.tensor(X.to_numpy())
+        A_truth = nx.adjacency_matrix(G_target, nodelist=columns).toarray()
+
+
 
     A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning="Fast", threshold = threshold, pns=pns, K=K)
     top_order_err = num_errors(top_order_SCORE, A_truth)
-    pretty = pretty_evaluate("K-Fast", threshold, A_truth, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
+    pretty = pretty_evaluate("K-Fast", threshold, A_truth, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=K)
     print(pretty)
     
     # FAST logs
