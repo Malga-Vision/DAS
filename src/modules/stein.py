@@ -5,14 +5,15 @@ from cdt.utils.R import launch_R_script
 from modules.utils import *
 
 
-def Stein_hess_diag(X, eta_G, eta_H, s = None):
+def Stein_hess_diag(X_diff, eta_G, eta_H, s = None):
     """
     Estimates the diagonal of the Hessian of log p_X at the provided samples points
     X, using first and second-order Stein identities
     """
-    n, d = X.shape
+    # n, d = X.shape
     
-    X_diff = X.unsqueeze(1)-X
+    # X_diff = X.unsqueeze(1)-X
+    n = X_diff.shape[0]
     if s is None:
         D = torch.norm(X_diff, dim=2, p=2)
         s = D.flatten().median()
@@ -23,38 +24,34 @@ def Stein_hess_diag(X, eta_G, eta_H, s = None):
     K_inv = torch.inverse(K + eta_H * torch.eye(n))
     
     nabla2K = torch.einsum('kij,ik->kj', -1/s**2 + X_diff**2/s**4, K)
+    
     return -G**2 + torch.matmul(K_inv, nabla2K), G, K, K_inv, s
 
 
-def Stein_hess_row(X, s, l, G, K, K_inv):
+def Stein_hess_row(X_diff, s, l, G, K, K_inv):
     """
     v-th row of the Hessian matrix
     """    
-    X_diff = X.unsqueeze(1)-X
-    # K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-    
-    # nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    # G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
+    # X_diff = X.unsqueeze(1)-X
     Gl = torch.einsum('i,ij->ij', G[:,l], G)
     
     nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
     nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
     
-    # return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
     return -Gl + torch.matmul(K_inv, nabla2lK)
 
 
-def fast_parents(hess_l, K, l, threshold, remaining_nodes):
+def fast_parents(hess_l, K, threshold, remaining_nodes):
         hess_m = torch.abs(torch.median(hess_l, dim=0).values)
         # hess_m = torch.abs(hess_l.mean(dim=0))
-        m_values, m_indices = hess_m.sort(descending=True)
         parents = []
-        for j in range(0, min(K, len(m_values))):
-            if m_values[j] > threshold:
-                node = m_indices[j]
-                if node != l:
-                    parents.append(remaining_nodes[node])
-
+        t = threshold
+        K = min(K, len(remaining_nodes))
+        topk_values, topk_indices = torch.topk(hess_m, K, sorted=False)
+        for j in range(K):
+            if topk_values[j] > max(threshold, t):
+                node = topk_indices[j]
+                parents.append(remaining_nodes[node])
         return parents
 
 
@@ -63,8 +60,12 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
     A = np.zeros((d,d))
     order = []
     active_nodes = list(range(d))
+    tot = 0
     for _ in range(d-1):
-        H, G, K, K_inv, s = Stein_hess_diag(X, eta_G, eta_H)
+        X_diff = X.unsqueeze(1)-X
+        start = time.time()
+        H, G, K, K_inv, s = Stein_hess_diag(X_diff, eta_G, eta_H)
+        tot += time.time() - start
         if normalize_var:
             H = H / H.mean(axis=0)
         if dispersion == "var": # The one mentioned in the paper
@@ -76,8 +77,8 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
             raise Exception("Unknown dispersion criterion")
             
         # parents
-        H_l = Stein_hess_row(X, s, l, G, K, K_inv)
-        parents = fast_parents(H_l, n_parents, l, threshold, active_nodes)
+        H_l = Stein_hess_row(X_diff, s, l, G, K, K_inv)
+        parents = fast_parents(H_l, n_parents, threshold, active_nodes)
         A[parents, l] = 1
         A[l, l] = 0
         order.append(active_nodes[l])
@@ -85,25 +86,10 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
 
         X = torch.hstack([X[:,0:l], X[:,l+1:]])
 
+    print(tot)
     order.append(active_nodes[0])
     order.reverse()
     return order, A
-
-
-def Stein_hess_parents(X, s, eta, l):
-    n, d = X.shape
-    
-    X_diff = X.unsqueeze(1)-X
-    K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-    
-    nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-    G = torch.matmul(torch.inverse(K + eta * torch.eye(n)), nablaK) # Expected: n x d, Ok
-    Gl = torch.einsum('i,ij->ij', G[:,l], G)
-    
-    nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
-    nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
-    
-    return -Gl + torch.matmul(torch.inverse(K + eta * torch.eye(n)), nabla2lK)
 
 
 def heuristic_kernel_width(X):
@@ -114,96 +100,6 @@ def heuristic_kernel_width(X):
     D = torch.norm(X_diff, dim=2, p=2)
     s = D.flatten().median()
     return s
-
-
-def Stein_pruning(X, top_order, eta, threshold = 0.1):
-    d = X.shape[1]
-    remaining_nodes = list(range(d))
-    A = np.zeros((d,d))
-    for i in range(d-1):
-        l = top_order[-(i+1)]
-        s = heuristic_kernel_width(X[:, remaining_nodes].detach())
-        p = Stein_hess_parents(X[:, remaining_nodes].detach(), s, eta, remaining_nodes.index(l))
-        p_mean = p.mean(axis=0).abs()
-        s_l = 1 / p_mean[remaining_nodes.index(l)]
-        parents = [remaining_nodes[i] for i in torch.where(p_mean > threshold / s_l)[0] if top_order[i] != l]
-        A[parents, l] = 1
-        A[l, l] = 0
-        remaining_nodes.remove(l)
-    return A
-
-
-def fast_pruning(X, top_order, eta_G, threshold):
-    """
-    Args:
-        X: N x D matrix of the samples
-        top_order: 1 x D vector of topoligical order. top_order[0] is source
-        eta_g: regularizer coefficient
-        threshold: Assign a parent for partial derivative greateq than threshold
-    """
-    d, n = X.shape
-    remaining_nodes = list(range(d))
-
-    A = np.zeros((d,d))
-    for i in range(d-1):
-        l = top_order[-(i+1)]
-        X_remaining = X[:, remaining_nodes]
-
-        # Stein row estimation
-        s = heuristic_kernel_width(X_remaining.detach())
-        X_diff = X_remaining.unsqueeze(1)-X_remaining
-        K = torch.exp(-torch.norm(X_diff, dim=2, p=2)**2 / (2 * s**2)) / s
-        nablaK = -torch.einsum('ikj,ik->ij', X_diff, K) / s**2
-        G = torch.matmul(torch.inverse(K + eta_G * torch.eye(n)), nablaK)
-        hess_l = Stein_hess_row(X_diff, G, K, l, s, eta_G, n)
-
-        parents = []
-        for j in torch.where(torch.abs(torch.median(hess_l, dim=0).values) > threshold)[0]:
-        # for j in torch.where(torch.abs(hess_l.mean(dim=0)) > threshold)[0]:
-            if top_order[j] != l: # ?!
-                parents.append(remaining_nodes[j])
-
-        A[parents, l] = 1
-        A[l, l] = 0
-        remaining_nodes.remove(l)
-    return A
-
-
-def K_fast_pruning(K, X, top_order, eta_G, threshold):
-    """
-    Args:
-        K: Like in pns, select only the K most probable parents, i.e. those with highest score derivative
-        X: N x D matrix of the samples
-        top_order: 1 x D vector of topoligical order. top_order[0] is source
-        eta_g: regularizer coefficient
-        threshold: Assign a parent for partial derivative greateq than threshold
-    """
-    K = K+1 # To account for A[l, l] = 0
-    n, d = X.shape
-    remaining_nodes = list(range(d))
-
-    A = np.zeros((d,d))
-    for i in range(d-1):
-        l = top_order[-(i+1)]
-        X_remaining = X[:, remaining_nodes]
-        s = heuristic_kernel_width(X_remaining.detach())
-        hess_l = Stein_hess_row(X_remaining, s, eta_G, remaining_nodes.index(l))
-
-        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
-        # hess_m = torch.abs(hess_l.mean(dim=0))
-        m_values, m_indices = hess_m.sort(descending=True)
-        parents = []
-        for j in range(0, min(K, len(m_values))):
-            if m_values[j] > threshold:
-                node = m_indices[j]
-            if top_order[node] != l: # ?!
-                parents.append(remaining_nodes[node])
-
-        A[parents, l] = 1
-        A[l, l] = 0
-        remaining_nodes.remove(l)
-    return A
-
 
 
 def fullAdj2Order(A):
@@ -248,20 +144,12 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
         return dag, top_order
         
   
-def SCORE(X, eta_G=0.001, eta_H=0.001, cutoff=0.001, normalize_var=False, dispersion="var", pruning = 'CAM', threshold=0.1, K=None):
+def SCORE(X, eta_G=0.001, eta_H=0.001, normalize_var=False, dispersion="var", threshold=0.1, K=None):
     start_time = time.time()
     top_order, A_SCORE = compute_top_order(X, eta_G, eta_H, K, threshold, normalize_var, dispersion)
     SCORE_time = time.time() - start_time
-    
 
-    # if pruning == "Fast" and K is not None:
-    #     A_SCORE = K_fast_pruning(K, X, top_order, eta_G, threshold=threshold)
-    # elif pruning == "FastCAM": #CAMFast
-    #     A_SCORE = cam_pruning(K_fast_pruning(X, top_order, eta_G, threshold=threshold), X, cutoff)
-    # else:
-    #     raise Exception("Unknown pruning method")
-
-    return A_SCORE, top_order, SCORE_time, SCORE_time + (time.time() - start_time)
+    return A_SCORE, top_order, SCORE_time
 
 
 def sortnregress(X, cutoff=0.001):
