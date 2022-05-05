@@ -5,9 +5,9 @@ import cdt
 
 # Data generation paramters
 graph_type = 'ER'
-d = 1000
+d = 10
 s0 = d
-N = 1000
+N = 2
 
 X, adj = generate(d, s0, N, GP=True)
 
@@ -16,9 +16,9 @@ eta_G = 0.001
 eta_H = 0.001
 cam_cutoff = 0.001
 pruning = "Fast"
-threshold = 0.000 # None for CAM
+threshold = 1e-5 # None for CAM
 sid = bool(d<=200)
-K=5
+K=11
 pns=None
 
 # """

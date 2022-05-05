@@ -205,14 +205,17 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         hess_remaining = hess_remaining[:, :, remaining_nodes]
         hess_l = hess_remaining[:, remaining_nodes.index(l), :]
         parents = []
-        # hess_m = torch.abs(torch.median(hess_l, dim=0).values)
-        hess_m = torch.abs(hess_l.mean(dim=0))
-        m_values, m_indices = hess_m.sort(descending=True)
-        for j in range(0, min(K, len(m_values))):
-            if m_values[j] > threshold:
-                node = m_indices[j]
-            if top_order[node] != l: # ?!
-                parents.append(remaining_nodes[node])
+        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
+        # hess_m = torch.abs(hess_l.mean(dim=0))
+        
+        t = hess_m.mean()
+        K = min(K, len(remaining_nodes))
+        topk_values, topk_indices = torch.topk(hess_m, K, sorted=False)
+        for j in range(K):
+            if topk_values[j] > max(threshold, t):
+                node = topk_indices[j]
+                if top_order[node] != l: # ?!
+                    parents.append(remaining_nodes[node])
 
         A[parents, l] = 1
         A[l, l] = 0
