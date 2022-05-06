@@ -5,14 +5,14 @@ from cdt.utils.R import launch_R_script
 from modules.utils import *
 
 
-def Stein_hess_diag(X_diff, eta_G, eta_H, s = None):
+def Stein_hess_diag(X, eta_G, eta_H, s = None):
     """
     Estimates the diagonal of the Hessian of log p_X at the provided samples points
     X, using first and second-order Stein identities
     """
     # n, d = X.shape
     
-    # X_diff = X.unsqueeze(1)-X
+    X_diff = X.unsqueeze(1)-X
     n = X_diff.shape[0]
     if s is None:
         D = torch.norm(X_diff, dim=2, p=2)
@@ -28,11 +28,11 @@ def Stein_hess_diag(X_diff, eta_G, eta_H, s = None):
     return -G**2 + torch.matmul(K_inv, nabla2K), G, K, K_inv, s
 
 
-def Stein_hess_row(X_diff, s, l, G, K, K_inv):
+def Stein_hess_row(X, s, l, G, K, K_inv):
     """
     v-th row of the Hessian matrix
     """    
-    # X_diff = X.unsqueeze(1)-X
+    X_diff = X.unsqueeze(1)-X
     Gl = torch.einsum('i,ij->ij', G[:,l], G)
     
     nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
@@ -42,29 +42,28 @@ def Stein_hess_row(X_diff, s, l, G, K, K_inv):
 
 
 def fast_parents(hess_l, K, threshold, remaining_nodes):
-        hess_m = torch.abs(torch.median(hess_l, dim=0).values)
-        # hess_m = torch.abs(hess_l.mean(dim=0))
+        hess_m = hess_l.mean(dim=0)
         parents = []
-        t = threshold
-        K = min(K, len(remaining_nodes))
-        topk_values, topk_indices = torch.topk(hess_m, K, sorted=False)
-        for j in range(K):
-            if topk_values[j] > max(threshold, t):
+        t = 0
+        k = min(K, len(remaining_nodes))
+        topk_values, topk_indices = torch.topk(hess_m, k, sorted=False)
+        for j in range(k):
+            if topk_values[j] > t:
                 node = topk_indices[j]
                 parents.append(remaining_nodes[node])
         return parents
 
 
+
 def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True, dispersion="var"):
-    _, d = X.shape
+    n, d = X.shape
     A = np.zeros((d,d))
     order = []
     active_nodes = list(range(d))
     tot = 0
     for _ in range(d-1):
-        X_diff = X.unsqueeze(1)-X
         start = time.time()
-        H, G, K, K_inv, s = Stein_hess_diag(X_diff, eta_G, eta_H)
+        H, G, K, K_inv, s = Stein_hess_diag(X, eta_G, eta_H)
         tot += time.time() - start
         if normalize_var:
             H = H / H.mean(axis=0)
@@ -77,7 +76,8 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
             raise Exception("Unknown dispersion criterion")
             
         # parents
-        H_l = Stein_hess_row(X_diff, s, l, G, K, K_inv)
+        # H_l = Stein_hess_row(X, s, l, G, K, K_inv)
+        H_l = Stein_hess_col(X, G, K, l, s, eta_G, n)
         parents = fast_parents(H_l, n_parents, threshold, active_nodes)
         A[parents, l] = 1
         A[l, l] = 0
@@ -86,7 +86,6 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
 
         X = torch.hstack([X[:,0:l], X[:,l+1:]])
 
-    print(tot)
     order.append(active_nodes[0])
     order.reverse()
     return order, A
