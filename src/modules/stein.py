@@ -28,7 +28,7 @@ def Stein_hess_diag(X, eta_G, eta_H, s = None):
     return -G**2 + torch.matmul(K_inv, nabla2K), G, K, K_inv, s
 
 
-def Stein_hess_row(X, s, l, G, K, K_inv):
+def Stein_hess_row(X, H_diag, s, l, G, K, K_inv):
     """
     v-th row of the Hessian matrix
     """    
@@ -37,8 +37,10 @@ def Stein_hess_row(X, s, l, G, K, K_inv):
     
     nabla2lK = torch.einsum('ik,ikj,ik->ij', X_diff[:,:,l], X_diff, K) / s**4
     nabla2lK[:,l] -= torch.einsum("ik->i", K) / s**2
+
+    H_row = -Gl + torch.matmul(K_inv, nabla2lK)
     
-    return -Gl + torch.matmul(K_inv, nabla2lK)
+    return H_row / H_diag.mean(dim=0)
 
 
 def fast_parents(hess_l, K, threshold, remaining_nodes):
@@ -77,7 +79,7 @@ def compute_top_order(X, eta_G, eta_H,  n_parents, threshold, normalize_var=True
             
         # parents
         # H_l = Stein_hess_row(X, s, l, G, K, K_inv)
-        H_l = Stein_hess_col(X, G, K, l, s, eta_G, n)
+        H_l = Stein_hess_row(X, H, s, l, G, K, K_inv)
         parents = fast_parents(H_l, n_parents, threshold, active_nodes)
         A[parents, l] = 1
         A[l, l] = 0
