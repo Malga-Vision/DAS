@@ -23,7 +23,7 @@ pns=None
     
 A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning=pruning, threshold=threshold, pns=pns, K=K)
 top_order_err = num_errors(top_order_SCORE, adj)
-pretty = pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=K)
+pretty = pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, s0=s0, K=K)
 print(pretty)
 
 # CAM logs
@@ -41,6 +41,6 @@ else:
     A_SCORE = cam_pruning(A_SCORE, X, cam_cutoff)
     cam_time = time.time() - start
     tot_time += cam_time
-    pretty = pretty_evaluate(pruning + "CAM", threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid)
+    pretty = pretty_evaluate(pruning + "CAM", threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, s0=s0)
     with open(f'../logs/test/test_logs_fastcam.txt', 'a+') as f:
         f.writelines(pretty)

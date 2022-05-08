@@ -212,7 +212,7 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
         Opzione 1: Stay above the mean + CAM ==> nel paper diventa: "Stay above the mean. We additionally prune the resulting graph with CAM for graphs too dense to reduce the number of false positive."
         Opzione 2: Stay above a "moving mean"
         """
-        t = 0
+        t = hess_m.mean()
         K = min(K, len(remaining_nodes))
         topk_values, topk_indices = torch.topk(hess_m, K, sorted=False)
         for j in range(K):
@@ -220,13 +220,6 @@ def K_fast_pruning(K, X, top_order, eta_G, threshold):
                 node = topk_indices[j]
                 if top_order[node] != l: # ?!
                     parents.append(remaining_nodes[node])
-
-        # m_values, m_indices = hess_m.sort(descending=True)
-        # for j in range(0, min(K, len(m_values))):
-        #     if m_values[j] > max(threshold, t):
-        #         node = m_indices[j]
-        #         if top_order[node] != l: # ?!
-        #             parents.append(remaining_nodes[node])
 
         A[parents, l] = 1
         A[l, l] = 0

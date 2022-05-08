@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.model_selection import ParameterGrid
 
-from modules.utils import generate, pretty_evaluate
+from modules.utils import generate, pretty_evaluate, precision, recall
 from modules.stein import SCORE
 from modules.experiments.experiment import Experiment
 
@@ -17,7 +17,7 @@ class FastExperiment(Experiment):
         self.output_file = f"../logs/exp/fast_{s0}_{d_values[-1]}.csv"
         self.logs = []
         self.columns = [
-            'V', 'E', 'N', 'threshold', 'fn', 'fp', 'reversed', 'SHD', 'SID' , 'D_top', 'SCORE time [s]','Total time [s]'
+            'V', 'E', 'N', 'threshold', 'precision', 'recall', 'reversed', 'SHD', 'SID' , 'D_top', 'SCORE time [s]','Total time [s]'
         ]
 
     def get_params(self):
@@ -47,8 +47,10 @@ class FastExperiment(Experiment):
         """
         A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold, K=self.k)
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-        print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
-        run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
+        precision_metric = precision(s0, fn, fp)
+        recall_metric = recall(s0, fn)
+        print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid, s0))
+        run_logs.append([d, s0, N, threshold, precision_metric, recall_metric, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
         return A_SCORE, top_order_SCORE, SCORE_time, tot_time
 
