@@ -215,6 +215,14 @@ def edge_errors(pred, target):
 
     return fn, fp, rev
 
+def precision(e, fn, fp):
+    tp = e - fn
+    return tp / (tp+fp)
+
+def recall(e, fn):
+    tp = e - fn
+    return tp / e
+
 
 def SHD(pred, target):
     return sum(edge_errors(pred, target))
@@ -241,9 +249,11 @@ def np_to_csv(array, save_path):
     return output
 
 
-def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, K=None, pns=None):
+def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time, tot_time, sid, s0, K=None, pns=None):
     fn, fp, rev = edge_errors(A_SCORE, adj)
     d = A_SCORE.shape[0]
+    precision_metric = precision(s0, fn, fp)
+    recall_metric = recall(s0, fn)
 
     pretty = f"""
 ----------------------------------------------------
@@ -264,6 +274,8 @@ Number of nodes:                    {d}
 Topological order errors:           {top_order_err}
 False negative:                     {int(fn)}
 False positive:                     {int(fp)}
+Recall:                             {round(recall_metric, 2)}
+Precision:                          {round(precision_metric, 2)}
 Reversed:                           {int(rev)}
 SHD:                                {SHD(A_SCORE, adj)}
     """
@@ -274,3 +286,14 @@ SID:                                {int(SID(target=adj, pred=A_SCORE))}
 """.lstrip()
 
     return pretty
+
+
+############## SERGIO-TESTING ##############
+def ground_truth(d, path):
+    A = np.zeros((d, d))
+    ground_truth = pd.read_csv(path, header=None).to_numpy()
+    for row in ground_truth:
+        src, dest = row
+        A[src, dest] = 1
+
+    return A

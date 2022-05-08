@@ -122,7 +122,7 @@ def cam_pruning(A, X, cutoff, prune_only=True, pns=False):
     arguments['{PATH_RESULTS}'] = os.path.join(save_path, "results.csv")
     arguments['{ADJFULL_RESULTS}'] = os.path.join(save_path, "adjfull.csv")
     arguments['{CUTOFF}'] = str(cutoff)
-    arguments['{VERBOSE}'] = "TRUE"
+    arguments['{VERBOSE}'] = "FALSE"
     print(arguments)
 
     if prune_only:
