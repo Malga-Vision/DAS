@@ -19,7 +19,7 @@ def main():
     pns=None
 
     data = "Sergio"
-    pruning = "Fast"
+    pruning = "CAM"
 
     if data == "Sergio":
         folder_path = "/home/francescom/Research/De-noised_400G_9T_300cPerT_5_DS2"
@@ -38,8 +38,9 @@ def main():
         gt_path = os.path.join(folder_path, "gt_GRN.csv")
         A_truth = ground_truth(d, gt_path)
 
-        X = X[:100, :100]
-        A_truth = A_truth[:100, :100]
+        custom_d = 20
+        X = X[:, :custom_d]
+        A_truth = A_truth[:custom_d, :custom_d]
         tp = A_truth.sum()
         print(f"True positives: {tp}")
 
