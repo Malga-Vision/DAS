@@ -18,7 +18,7 @@ def main():
     K=20
     pns=None
 
-    data = "Sergio"
+    data = "Sachs"
     pruning = "CAM"
 
     if data == "Sergio":
@@ -47,7 +47,7 @@ def main():
         sid = False
 
     elif data == "Sachs":
-        path_to_data = ""
+        path_to_data = "../data/sachs/cd3cd28.xls"
         
         # Logs paths
         fast_path = f'../logs/test/sachs_{pruning.lower()}_{threshold}.txt'
