@@ -258,8 +258,8 @@ def pretty_evaluate(pruning, threshold, adj, A_SCORE, top_order_err, SCORE_time,
     pretty = f"""
 ----------------------------------------------------
 
-SCORE execution time:               {round(SCORE_time, 2)}s
-Total execution time:               {round(tot_time, 2)}s
+Ordering time:                     {round(SCORE_time, 2)}s
+Total time:                        {round(tot_time, 2)}s
 
 ----------------------------------------------------
 

@@ -45,12 +45,12 @@ class FastExperiment(Experiment):
         """
         Run SCORE with Fast as pruning algorithm. Update logs
         """
-        A_SCORE, top_order_SCORE, SCORE_time, tot_time =  SCORE(X, eta_G, eta_H, pruning="Fast", threshold=threshold, K=self.k)
+        A_SCORE, top_order_SCORE, SCORE_time =  SCORE(X, eta_G, eta_H, threshold=threshold, K=self.k)
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-        print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid))
-        run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
+        print(pretty_evaluate("Fast", threshold, adj, A_SCORE, top_order_errors, SCORE_time, -1,  sid=sid, s0=s0))
+        run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, -1])
 
-        return A_SCORE, top_order_SCORE, SCORE_time, tot_time
+        return A_SCORE, top_order_SCORE, SCORE_time
 
 
     def run_config(self, params, N, eta_G, eta_H):

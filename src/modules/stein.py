@@ -44,7 +44,7 @@ def Stein_hess_row(X, H_diag, s, l, G, K, K_inv):
 
 
 def fast_parents(hess_l, K, threshold, remaining_nodes):
-        hess_m = hess_l.mean(dim=0)
+        hess_m = torch.abs(hess_l.mean(dim=0))
         parents = []
         t = 0
         k = min(K, len(remaining_nodes))

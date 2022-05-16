@@ -3,8 +3,6 @@ import pandas as pd
 import time
 
 from sklearn.model_selection import ParameterGrid
-from torch import overrides
-
 from modules.utils import generate, pretty_evaluate
 from modules.stein import cam_pruning
 from modules.experiments.fast_experiment import FastExperiment
@@ -64,10 +62,10 @@ class FastCAMExperiment(FastExperiment):
         """
         start = time.time()
         A_SCORE = cam_pruning(A_SCORE, X, self.cam_cutoff)
-        tot_time = fast_time + (time.time() - start)
+        tot_time = SCORE_time + (time.time() - start)
 
         fn, fp, rev, SHD, SID, top_order_errors = self.metrics(A_SCORE, adj, top_order_SCORE, sid)
-        print(pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid, K=self.k))
+        print(pretty_evaluate("FastCAM", threshold, adj, A_SCORE, top_order_errors, SCORE_time, tot_time, sid=sid, s0=s0, K=self.k))
         run_logs.append([d, s0, N, threshold, fn, fp, rev, SHD, SID, top_order_errors, SCORE_time, tot_time])
 
 
@@ -83,8 +81,8 @@ class FastCAMExperiment(FastExperiment):
             print(f"Iteration {k+1}/{self.num_tests}")
             X, adj = generate(d, s0, N, noise_type=self.data_type, GP=True)
             
-            A_SCORE, top_order_SCORE, SCORE_time, tot_time = self.fast(X, adj, eta_G, eta_H, threshold, d, s0, N, sid, fast_logs)
-            self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, tot_time, sid, fastcam_logs)
+            A_SCORE, top_order_SCORE, SCORE_time = self.fast(X, adj, eta_G, eta_H, threshold, d, s0, N, sid, fast_logs)
+            self.fastcam(X, adj, threshold, d, s0, N, A_SCORE, top_order_SCORE, SCORE_time, -1, sid, fastcam_logs)
 
 
         self.config_logs(fast_logs, sid, "fast")
